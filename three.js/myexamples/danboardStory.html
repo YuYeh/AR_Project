@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!-- three.js library -->
+<script src='../examples/vendor/three.js/build/three.js'></script>
+<script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<!-- jsartookit -->
+<script src="../vendor/jsartoolkit5/build/artoolkit.min.js"></script>
+<script src="../vendor/jsartoolkit5/js/artoolkit.api.js"></script>
+<!-- include threex.artoolkit -->
+<script src="../src/threex/threex-artoolkitsource.js"></script>
+<script src="../src/threex/threex-artoolkitcontext.js"></script>
+<script src="../src/threex/threex-arbasecontrols.js"></script>
+<script src="../src/threex/threex-armarkercontrols.js"></script>
+<script>THREEx.ArToolkitContext.baseURL = '../'</script>
+
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;'><div style='position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
+	<a href="https://github.com/jeromeetienne/AR.js/" target="_blank">AR.js</a> - three.js mobile performance
+	<br/>
+	Code by <a href="https://twitter.com/snigelpaogat" target='_blank'>Fredrik Blomqvist</a> and 
+	<a href='https://twitter.com/jerome_etienne' target='_blank'>@jerome_etienne</a>
+</div><script>
+	var renderer, scene, camera, stats;
+	var arToolkitSource, arToolkitContext;
+	var markerControls, markerRoot;
+	var loader = new THREE.TextureLoader();
+
+	var mesh;
+	
+	init();
+	animate();
+		
+	function buildDanboard() {
+		loader.setCrossOrigin (''); 
+
+		var faceTexture = [
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/PiFxBnA.jpg" )}),// +x
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: right = loader.load( "https://i.imgur.com/9KGDYiy.jpg")}),// -x
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/xIbygcS.png" )}),// +y
+			new THREE.MeshLambertMaterial({ visible: false }),// -Y
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/UQjjOu2.jpg" )}),// +z
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/A7tfkyx.jpg" )})// -Z
+		];
+		var material = new THREE.MultiMaterial(faceTexture);
+		var headMesh = new THREE.Mesh(new THREE.CubeGeometry(0.12,0.0725,0.07),material);
+
+		var skin = new THREE.MeshLambertMaterial({
+			map: loader.load('https://i.imgur.com/ZSklu60.jpg')});
+
+		var bodyTexture = [
+			skin,
+			skin,
+			skin,
+			skin,
+			new THREE.MeshLambertMaterial({
+					map: loader.load('https://i.imgur.com/uUZxpgM.jpg')}),
+			new THREE.MeshLambertMaterial({
+					map: loader.load('https://i.imgur.com/8UOpKrK.jpg')})
+		];
+
+
+		var bodyMaterial = new THREE.MultiMaterial(bodyTexture);
+		var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(0.06, 0.08, 0.05),bodyMaterial);
+		headMesh.position.y = 0.04;
+		var head = new THREE.Object3D();
+		head.add(headMesh)
+		head.position.y = 0.0375;
+		bodyMesh.add(head);
+
+
+
+		//leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 4, 32, 1, false, Math.PI/2, Math.PI), skin);
+		var leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.02, 0.16), skin);
+		var leftArm = new THREE.Mesh(new THREE.CubeGeometry(0.02, 0.02, 0.08),skin);
+		leftArm.position.z = 0.04;
+		leftjoint.add(leftArm);
+		leftjoint.position.set(0.04,0.025,0)
+		bodyMesh.add(leftjoint);
+		var rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.02, 0.16), skin);
+		var rightArm = leftArm.clone();
+		rightArm.position.z = 0.04;
+		rightjoint.add(rightArm);
+		rightjoint.position.set(-0.04,0.025,0);
+		bodyMesh.add(rightjoint);
+		var helfBody = new THREE.Object3D();
+		bodyMesh.position.y = 0.04;
+		helfBody.add(bodyMesh);
+		var body = new THREE.Object3D();
+		body.add(helfBody);
+		//markerRoot.add(body);
+		var leg = new THREE.Mesh(new THREE.CubeGeometry(0.025, 0.065, 0.04),skin);
+		leg.position.y = -0.0325;
+		var cy = new THREE.Mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.0015, 0.16), skin);
+		cy.rotation.z = Math.PI/2;
+
+		var leftLeg = new THREE.Object3D();
+		leftLeg.add(leg);
+		leftLeg.position.set(0.015,-0.005,0);
+		body.add(leftLeg);
+
+		leftLeg.add(cy);
+		var leg2 = leg.clone();
+		var cy2 = cy.clone();
+		var rightLeg = new THREE.Object3D();
+		rightLeg.add(cy2);
+		rightLeg.add(leg2);
+		rightLeg.position.set(-0.015,-0.005,0);
+
+		body.add(rightLeg);
+		var skirt = new THREE.Object3D();
+		var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(0.06,0.03,0.0005),skin);
+		skirtMesh.position.y = -0.015;
+		skirt.add(skirtMesh);
+		skirt.position.z = 0.02;
+		skirt.rotation.x = -0.6;
+		body.add(skirt);
+		var skirt2 = new THREE.Object3D();
+		var skirt2Mesh = skirtMesh.clone();
+		skirt2.add(skirt2Mesh);
+		skirt2.position.z = -0.02;
+		skirt2.rotation.x = 0.16757650951199382;
+		body.add(skirt2);
+		var skirt3 = new THREE.Object3D();
+		var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.0005,0.03,0.04),skin);
+		skirt3Mesh.position.y=-0.015;
+		skirt3.add(skirt3Mesh);
+		skirt3.position.x = 0.03;
+		skirt3.rotation.z = 0.1;
+		body.add(skirt3);
+		var skirt4 = new THREE.Object3D();
+		var skirt4Mesh = skirt3Mesh.clone();
+		skirt4.add(skirt4Mesh);
+		skirt4.position.x = -0.03;
+		skirt4.rotation.z = -0.10849186655638249;
+		body.add(skirt4);
+		body.rotation.y = Math.PI/2;
+		//body.position.set( 7.15,0.23,0);
+		
+		head.rotation.x = -0.2;
+		body.rotation.x = 4.711955896203056;
+		body.rotation.y = 1.3165759121743832;
+		body.rotation.z = 1.5937497884216216;
+		leftjoint.rotation.y =  0.35952843924696287;
+		leftjoint.rotation.x = -0.3141592653589793;
+		rightjoint.rotation.y = -0.4754839854786803;
+		rightjoint.rotation.x = -0.3141592653589793;
+		leftLeg.rotation.x = 0.13964709125999486;
+		rightLeg.rotation.x =  -0.5;
+	}	
+	
+	function init() {
+		renderer	= new THREE.WebGLRenderer({
+			// antialias	: true,
+			alpha: true
+		});
+		// renderer.shadowMap.type = THREE.BasicShadowMap
+		// renderer.shadowMap.type = THREE.PCFShadowMap;
+		renderer.shadowMap.type = THREE.PCFSoftShadowMap
+		renderer.shadowMap.enabled = true;
+		renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+		// renderer.setPixelRatio( 1/2 );
+
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.domElement.style.position = 'absolute'
+		renderer.domElement.style.top = '0px'
+		renderer.domElement.style.left = '0px'
+		document.body.appendChild( renderer.domElement );
+		
+		scene	= new THREE.Scene();
+		var ambient = new THREE.AmbientLight( 0x666666 );
+		scene.add( ambient );
+		
+		var directionalLight = new THREE.DirectionalLight( 'white' );
+		directionalLight.position.set( 1, 2, 0.3 ).setLength(2)
+		directionalLight.shadow.mapSize.set(128,128)
+		directionalLight.shadow.camera.bottom = -0.6
+		directionalLight.shadow.camera.top = 0.6
+		directionalLight.shadow.camera.right = 0.6
+		directionalLight.shadow.camera.left = -0.6
+		directionalLight.castShadow = true;
+		// scene.add(new THREE.CameraHelper( directionalLight.shadow.camera ))
+		scene.add( directionalLight );
+		
+		camera = new THREE.Camera();
+		scene.add(camera);
+		
+		arToolkitSource = new THREEx.ArToolkitSource({
+			// to read from the webcam
+			sourceType : 'webcam',
+
+			// to read from an image
+			// sourceType : 'image',
+			// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/images/img.jpg',
+
+			// to read from a video
+			// sourceType : 'video',
+			// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/videos/headtracking.mp4',
+		})
+		arToolkitSource.init(function onReady(){
+			onResize()
+		})
+		window.addEventListener('resize', function(){
+			onResize()
+		})
+		
+		arToolkitContext = new THREEx.ArToolkitContext({
+			cameraParametersUrl: THREEx.ArToolkitContext.baseURL + '../data/data/camera_para.dat',
+			detectionMode: 'mono',
+			// maxDetectionRate: 30,
+			// canvasWidth: 80*3,
+			// canvasHeight: 60*3,
+		})
+		
+		// initialize it
+		arToolkitContext.init(function onCompleted(){
+			// copy projection matrix to camera
+			camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+		})
+		
+		markerControls = new THREEx.ArMarkerControls(arToolkitContext, camera, {
+			type : 'pattern',
+			patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.hiro',
+			// patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.kanji',
+			// as we controls the camera, set changeMatrixMode: 'cameraTransformMatrix'
+			changeMatrixMode: 'cameraTransformMatrix'
+		})
+		// as we do changeMatrixMode: 'cameraTransformMatrix', start with invisible scene
+		//scene.visible = false
+
+		//////////////////////////////////////////////////////////////////////////////////
+		//		add an object in the scene
+		//////////////////////////////////////////////////////////////////////////////////
+
+		markerRoot = new THREE.Group
+		scene.add(markerRoot)
+		
+		// add a torus knot
+		// var geometry	= new THREE.CubeGeometry(1,1,1);
+		// var material	= new THREE.MeshNormalMaterial({
+		// 	transparent : true,
+		// 	opacity: 0.5,
+		// 	side: THREE.DoubleSide
+		// });
+		// var mesh	= new THREE.Mesh( geometry, material );
+		// mesh.position.y	= geometry.parameters.height/2
+		// markerRoot.add( mesh );
+		
+		loader.setCrossOrigin (''); 
+		var material = new THREE.MeshBasicMaterial({
+			map:loader.load("https://i.imgur.com/3RUoApc.png"),
+			side:THREE.DoubleSide
+		})
+		var floor	=new THREE.Mesh(new THREE.PlaneGeometry(2.97,2.1,20,20),material);
+		floor.position.x = -0.0715;
+		floor.rotation.x = -Math.PI/2;
+		markerRoot.add( floor );
+		
+		buildDanboard();
+		
+		
+		var ball = new THREE.Mesh(new THREE.SphereGeometry(0.38/Math.PI, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
+		markerRoot.add(ball);
+
+		//ball.position.set(-7.65,0.9,0);
+		
+		/*var geometry	= new THREE.TorusKnotGeometry(0.3,0.1,64,16); // make it slightly larger for better view
+		var material	= new THREE.MeshNormalMaterial();
+		var material	= new THREE.MeshLambertMaterial();
+		mesh	= new THREE.Mesh( geometry, material );
+		mesh.castShadow = true;
+		mesh.receiveShadow = true;
+		mesh.position.y	= 0.7
+		markerRoot.add( mesh );
+		// point the directionalLight to the marker
+		directionalLight.target = mesh;
+		
+		// add a transparent ground-plane shadow-receiver
+		var material = new THREE.ShadowMaterial();
+		material.opacity = 0.7; //! bug in threejs. can't set in constructor
+
+		var geometry = new THREE.PlaneGeometry(3, 3)
+		var planeMesh = new THREE.Mesh( geometry, material);
+		planeMesh.receiveShadow = true;
+		planeMesh.depthWrite = false;
+		planeMesh.rotation.x = -Math.PI/2
+		markerRoot.add(planeMesh);*/
+		
+		stats = new Stats();
+		document.body.appendChild( stats.dom );
+
+	}
+	
+	function onResize(){
+		arToolkitSource.onResize()	
+		arToolkitSource.copySizeTo(renderer.domElement)	
+		if( arToolkitContext.arController !== null ){
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)	
+		}	
+	}
+	
+	
+	function animate() {
+		requestAnimationFrame( animate );
+		renderer.render( scene, camera );
+		stats.update();
+		
+		// update artoolkit on every frame
+		if( arToolkitSource.ready === false )	return
+		arToolkitContext.update( arToolkitSource.domElement );
+		// update scene.visible if the marker is seen
+		/*scene.visible = camera.visible;
+		mesh.rotation.x += 0.04;*/
+	}
+
+	/*// run the rendering loop
+	var lastTimeMsec= null
+	requestAnimationFrame(function animate(nowMsec){
+		// keep looping
+		requestAnimationFrame( animate );
+		// measure time
+		lastTimeMsec	= lastTimeMsec || nowMsec-1000/60
+		var deltaMsec	= Math.min(200, nowMsec - lastTimeMsec)
+		lastTimeMsec	= nowMsec
+		// call each update function
+		onRenderFcts.forEach(function(onRenderFct){
+			onRenderFct(deltaMsec/1000, nowMsec/1000)
+		})
+	})*/
+</script></body>

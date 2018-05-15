@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!-- three.js library -->
+<script src='../examples/vendor/three.js/build/three.min.js'></script>
+<script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<!-- ar.js -->
+<script src="../build/ar.js"></script>
+<script>THREEx.ArToolkitContext.baseURL = '../'</script>
+
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;'><div style='position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
+	<a href="https://github.com/jeromeetienne/AR.js/" target="_blank">AR.js</a> - three.js mobile performance
+	<br/>
+	Contact me any time at <a href='https://twitter.com/jerome_etienne' target='_blank'>@jerome_etienne</a>
+</div><script>
+	var renderer, scene, camera, stats;
+	var arToolkitSource, arToolkitContext;
+	var smoothedControls, markerRoot, smoothedRoot;
+	
+	var loader = new THREE.TextureLoader();
+	var head, leftjoint, rightjoint, leftLeg, rightLeg, body, helfBody;
+	var skirt, skirt2, skirt3, skirt4;
+	var gcontrols;
+	
+	function buildDanboard() {
+		loader.setCrossOrigin (''); 
+
+		var faceTexture = [
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/PiFxBnA.jpg" )}),// +x
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: right = loader.load( "https://i.imgur.com/9KGDYiy.jpg")}),// -x
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/xIbygcS.png" )}),// +y
+			new THREE.MeshLambertMaterial({ visible: false }),// -Y
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/UQjjOu2.jpg" )}),// +z
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/A7tfkyx.jpg" )})// -Z
+		];
+		var material = new THREE.MultiMaterial(faceTexture);
+		var headMesh = new THREE.Mesh(new THREE.CubeGeometry(0.12,0.0725,0.07),material);
+
+		var skin = new THREE.MeshLambertMaterial({
+			map: loader.load('https://i.imgur.com/ZSklu60.jpg')});
+
+		var bodyTexture = [
+			skin,
+			skin,
+			skin,
+			skin,
+			new THREE.MeshLambertMaterial({
+					map: loader.load('https://i.imgur.com/uUZxpgM.jpg')}),
+			new THREE.MeshLambertMaterial({
+					map: loader.load('https://i.imgur.com/8UOpKrK.jpg')})
+		];
+
+
+		var bodyMaterial = new THREE.MultiMaterial(bodyTexture);
+		var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(0.06, 0.08, 0.05),bodyMaterial);
+		headMesh.position.y = 0.04;
+		head = new THREE.Object3D();
+		head.add(headMesh)
+		head.position.y = 0.0375;
+		bodyMesh.add(head);
+
+
+
+		//leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 4, 32, 1, false, Math.PI/2, Math.PI), skin);
+		leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.02, 0.16), skin);
+		var leftArm = new THREE.Mesh(new THREE.CubeGeometry(0.02, 0.02, 0.08),skin);
+		leftArm.position.z = 0.04;
+		leftjoint.add(leftArm);
+		leftjoint.position.set(0.04,0.025,0)
+		bodyMesh.add(leftjoint);
+		rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.02, 0.16), skin);
+		var rightArm = leftArm.clone();
+		rightArm.position.z = 0.04;
+		rightjoint.add(rightArm);
+		rightjoint.position.set(-0.04,0.025,0);
+		bodyMesh.add(rightjoint);
+		helfBody = new THREE.Object3D();
+		bodyMesh.position.y = 0.04;
+		helfBody.add(bodyMesh);
+		body = new THREE.Object3D();
+		body.add(helfBody);
+		smoothedRoot.add(body);
+		var leg = new THREE.Mesh(new THREE.CubeGeometry(0.025, 0.065, 0.04),skin);
+		leg.position.y = -0.0325;
+		var cy = new THREE.Mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.0015, 0.16), skin);
+		cy.rotation.z = Math.PI/2;
+
+		leftLeg = new THREE.Object3D();
+		leftLeg.add(leg);
+		leftLeg.position.set(0.015,-0.005,0);
+		body.add(leftLeg);
+
+		leftLeg.add(cy);
+		var leg2 = leg.clone();
+		var cy2 = cy.clone();
+		rightLeg = new THREE.Object3D();
+		rightLeg.add(cy2);
+		rightLeg.add(leg2);
+		rightLeg.position.set(-0.015,-0.005,0);
+
+		body.add(rightLeg);
+		skirt = new THREE.Object3D();
+		var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(0.06,0.03,0.0005),skin);
+		skirtMesh.position.y = -0.015;
+		skirt.add(skirtMesh);
+		skirt.position.z = 0.02;
+		skirt.rotation.x = -0.001;
+		body.add(skirt);
+		skirt2 = new THREE.Object3D();
+		var skirt2Mesh = skirtMesh.clone();
+		skirt2.add(skirt2Mesh);
+		skirt2.position.z = -0.02;
+		skirt2.rotation.x = 0.001;
+		body.add(skirt2);
+		skirt3 = new THREE.Object3D();
+		var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.0005,0.03,0.04),skin);
+		skirt3Mesh.position.y=-0.015;
+		skirt3.add(skirt3Mesh);
+		skirt3.position.x = 0.03;
+		skirt3.rotation.z = 0.001;
+		body.add(skirt3);
+		skirt4 = new THREE.Object3D();
+		var skirt4Mesh = skirt3Mesh.clone();
+		skirt4.add(skirt4Mesh);
+		skirt4.position.x = -0.03;
+		skirt4.rotation.z = -0.001;
+		body.add(skirt4);
+		body.rotation.y = Math.PI/2;
+		body.position.set( -0.45,0.1,0.2);
+	}
+	
+	init();
+	animate();
+	
+	function init(){
+	
+		renderer	= new THREE.WebGLRenderer({
+			// antialias	: true,
+			alpha: true
+		});
+		renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+		// renderer.setPixelRatio( 1/2 );
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.domElement.style.position = 'absolute'
+		renderer.domElement.style.top = '0px'
+		renderer.domElement.style.left = '0px'
+		document.body.appendChild( renderer.domElement );
+		
+		// init scene and camera
+		scene	= new THREE.Scene();
+		
+		//////////////////////////////////////////////////////////////////////////////////
+		//		Initialize a basic camera
+		//////////////////////////////////////////////////////////////////////////////////
+
+		// Create a camera
+		camera = new THREE.Camera();
+		scene.add(camera);
+		////////////////////////////////////////////////////////////////////////////////
+		//          handle arToolkitSource
+		////////////////////////////////////////////////////////////////////////////////
+
+		arToolkitSource = new THREEx.ArToolkitSource({
+			// to read from the webcam 
+			sourceType : 'webcam',
+
+			// to read from an image
+			// sourceType : 'image',
+			// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/images/img.jpg',		
+
+			// to read from a video
+			// sourceType : 'video',
+			// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/videos/headtracking.mp4',		
+		})
+
+		arToolkitSource.init(function onReady(){
+			onResize()
+		})
+		
+		// handle resize
+		window.addEventListener('resize', function(){
+			onResize()
+		})
+		
+		////////////////////////////////////////////////////////////////////////////////
+		//          initialize arToolkitContext
+		////////////////////////////////////////////////////////////////////////////////
+		
+
+		// create atToolkitContext
+		arToolkitContext = new THREEx.ArToolkitContext({
+			cameraParametersUrl: THREEx.ArToolkitContext.baseURL + '../data/data/camera_para.dat',
+			detectionMode: 'mono',
+			maxDetectionRate: 30,
+			canvasWidth: 80*3,
+			canvasHeight: 60*3,
+		})
+		// initialize it
+		arToolkitContext.init(function onCompleted(){
+			// copy projection matrix to camera
+			camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+		})
+		
+		////////////////////////////////////////////////////////////////////////////////
+		//          Create a ArMarkerControls
+		////////////////////////////////////////////////////////////////////////////////
+		
+		markerRoot = new THREE.Group
+		scene.add(markerRoot)
+		var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+			type : 'pattern',
+			//patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/one.patt'
+			patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.hiro'
+			// patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.kanji'
+		})
+
+		// build a smoothedControls
+		smoothedRoot = new THREE.Group()
+		scene.add(smoothedRoot)
+		
+		smoothedControls = new THREEx.ArSmoothedControls(smoothedRoot, {
+			lerpPosition: 0.4,
+			lerpQuaternion: 0.3,
+			lerpScale: 1,
+		})
+		
+		//////////////////////////////////////////////////////////////////////////////////
+		//		add an object in the scene
+		//////////////////////////////////////////////////////////////////////////////////
+		loader.setCrossOrigin ('');
+		var arWorldRoot = smoothedRoot
+		// add a torus knot	
+		var geometry	= new THREE.PlaneGeometry(1.8,1.3,14,14);
+		var material	= new THREE.MeshBasicMaterial({
+			map: loader.load('https://i.imgur.com/7hDTDAp.jpg'),
+			transparent : true,
+			side: THREE.DoubleSide
+		}); 
+		var floor	= new THREE.Mesh( geometry, material );
+		floor.rotation.x = -Math.PI/2;
+		arWorldRoot.add( floor );
+		
+		//build danboard
+		buildDanboard();
+		
+		var AmbientLight = new THREE.AmbientLight(0x888888,2); // soft white light
+		scene.add(AmbientLight);
+		gcontrol = {
+			UpDn: 0,
+			LtRt: 0,
+			LR: 0,
+			body: 0,
+			all: -Math.PI/2,
+			leftLR: 0.1,
+			leftFB: Math.PI/2,
+			rightLR: -0.1,
+			rightFB: Math.PI/2,
+			left_FB: 0,
+			left_LR: 0,
+			right_FB: 0,
+			right_LR: 0,
+		};
+
+		var gui = new dat.GUI();
+		gui.domElement.id = 'gui';
+		gui.remember(gcontrol);
+
+
+		var hd = gui.addFolder("head");
+		hd.add(gcontrol, 'UpDn', -0.2, 0.2);
+		hd.add(gcontrol, 'LR',-0.2, 0.2);
+		hd.add(gcontrol, 'LtRt', -Math.PI/3, Math.PI/3);
+
+		var bd = gui.addFolder("body");
+		bd.add(gcontrol, 'all', -Math.PI, 0);
+		bd.add(gcontrol, 'body', -Math.PI/4, Math.PI/4);
+
+		var arm = gui.addFolder("arm");
+		arm.add(gcontrol, 'leftLR', 0.1, Math.PI/2);
+		arm.add(gcontrol, 'leftFB', -3*Math.PI/5+Math.PI/2, 3*Math.PI/5+Math.PI/2);
+		arm.add(gcontrol, 'rightLR', -Math.PI/2 - 0.1, -0.1);
+		arm.add(gcontrol, 'rightFB', -3*Math.PI/5+Math.PI/2, 3*Math.PI/5+Math.PI/2);
+
+		var lg = gui.addFolder("leg");
+		lg.add(gcontrol, 'left_FB', -0.5, 0.5);
+		lg.add(gcontrol, 'left_LR', 0, 0.5);
+		lg.add(gcontrol, 'right_FB', -0.5, 0.5);
+		lg.add(gcontrol, 'right_LR', -0.5, 0);
+		
+		//////////////////////////////////////////////////////////////////////////////////
+		//		render the whole thing on the page
+		//////////////////////////////////////////////////////////////////////////////////
+		stats = new Stats();
+		document.body.appendChild( stats.dom );
+		// render the scene
+		
+		
+	}
+	
+	
+	function onResize(){
+		arToolkitSource.onResize()	
+		arToolkitSource.copySizeTo(renderer.domElement)	
+		if( arToolkitContext.arController !== null ){
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)	
+		}	
+	}
+	
+	function animate() {
+		
+		requestAnimationFrame( animate );
+		renderer.render( scene, camera );
+		stats.update();
+		
+		if( arToolkitSource.ready === false )	return
+		arToolkitContext.update( arToolkitSource.domElement )
+		
+		smoothedControls.update(markerRoot)
+		
+		head.rotation.x = gcontrol.UpDn;
+		head.rotation.y = gcontrol.LtRt;
+		head.rotation.z = gcontrol.LR;
+		helfBody.rotation.z = gcontrol.body;
+		body.rotation.x = gcontrol.all;
+		leftjoint.rotation.y = gcontrol.leftLR;
+		leftjoint.rotation.x = gcontrol.leftFB;
+		rightjoint.rotation.y = gcontrol.rightLR;
+		rightjoint.rotation.x = gcontrol.rightFB;
+		leftLeg.rotation.x = gcontrol.left_FB;
+		leftLeg.rotation.z = gcontrol.left_LR;
+		rightLeg.rotation.x = gcontrol.right_FB;
+		rightLeg.rotation.z = gcontrol.right_LR;
+
+		if(gcontrol.left_FB < -0.2 || gcontrol.right_FB < -0.2) {
+			skirt.rotation.x = gcontrol.left_FB < gcontrol.right_FB ? gcontrol.left_FB + gcontrol.left_FB*0.2 : gcontrol.right_FB + gcontrol.right_FB*0.2;
+		}
+		else 
+		 skirt.rotation.x = -0.2
+		if(gcontrol.left_FB > 0.2 || gcontrol.right_FB > 0.2) {
+			skirt2.rotation.x = gcontrol.left_FB > gcontrol.right_FB ? gcontrol.left_FB + gcontrol.left_FB*0.2 : gcontrol.right_FB + gcontrol.right_FB*0.2;
+		}
+		else 
+			skirt2.rotation.x = 0.2;
+		skirt3.rotation.z = gcontrol.left_LR  > 0.2  ? gcontrol.left_LR  :  0.2;
+		skirt4.rotation.z = gcontrol.right_LR < -0.2 ? gcontrol.right_LR : -0.2;
+		
+	}	
+
+	// run the rendering loop
+	/*var lastTimeMsec= null
+	requestAnimationFrame(function animate(nowMsec){
+		// keep looping
+		
+		// measure time
+		lastTimeMsec	= lastTimeMsec || nowMsec-1000/60
+		var deltaMsec	= Math.min(200, nowMsec - lastTimeMsec)
+		lastTimeMsec	= nowMsec
+		// call each update function
+		onRenderFcts.forEach(function(onRenderFct){
+			onRenderFct(deltaMsec/1000, nowMsec/1000)
+		})
+	})*/
+</script></body>
