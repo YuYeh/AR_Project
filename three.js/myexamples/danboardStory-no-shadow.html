@@ -155,12 +155,12 @@
 	}
 	
 	function buildBasketballStands() {
-		var board = new  THREE.Mesh(new THREE.CubeGeometry(0.05,0.5,0.9),new THREE.MeshNormalMaterial());
+		var board = new  THREE.Mesh(new THREE.CubeGeometry(0.025,0.25,0.45),new THREE.MeshNormalMaterial());
 		smoothedRoot.add(board);
 		board.position.set(2.065,1,0);
-		var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.18,0.01,20,100),new THREE.MeshNormalMaterial());
+		var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.09,0.005,20,100),new THREE.MeshNormalMaterial());
 		hoop.rotation.x = Math.PI/2;
-		hoop.position.set(1.825,1,0)
+		hoop.position.set(1.982,1,0)
 		smoothedRoot.add(hoop);
 	}
 	
@@ -276,7 +276,7 @@
 		buildDanboard();
 		buildBasketballStands();
 		
-		var ball = new THREE.Mesh(new THREE.SphereGeometry(0.38/Math.PI, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
+		var ball = new THREE.Mesh(new THREE.SphereGeometry(0.19/Math.PI, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
 		arWorldRoot.add(ball);
 		ball.position.set(1.26,0.9,0);
 		var AmbientLight = new THREE.AmbientLight(0x888888,2); // soft white light
