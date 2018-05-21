@@ -139,29 +139,73 @@
 		skirt4.position.x = -0.03;
 		skirt4.rotation.z = -0.001;
 		body.add(skirt4);
-		body.rotation.y = Math.PI/2;
-		body.position.set( 0.715,0.23,0);
+		body.position.set(0.715,0.66,0.15);
 		
 		head.rotation.x = -0.2;
-		body.rotation.x = 4.711955896203056;
-		body.rotation.y = 1.3165759121743832;
-		body.rotation.z = 1.5937497884216216;
-		leftjoint.rotation.y =  0.35952843924696287;
+		body.rotation.x = 0.3538825855916411;
+		body.rotation.y = 3.118206107781434;
+		body.rotation.z = 0;
+		leftjoint.rotation.y =  0.18283843012080525;
 		leftjoint.rotation.x = -0.3141592653589793;
-		rightjoint.rotation.y = -0.4754839854786803;
+		rightjoint.rotation.y = -0.23757185514875;
 		rightjoint.rotation.x = -0.3141592653589793;
-		leftLeg.rotation.x = 0.13964709125999486;
-		rightLeg.rotation.x =  -0.5;
+		leftLeg.rotation.x = 0.2719878687620627;
+		leftLeg.rotation.z = 0.34188034188034205;
+		rightLeg.rotation.x = 0.283016266887235;
+		rightLeg.rotation.z = -0.262889440308795;
 	}
 	
 	function buildBasketballStands() {
-		var board = new  THREE.Mesh(new THREE.CubeGeometry(0.025,0.25,0.45),new THREE.MeshNormalMaterial());
+		loader.setCrossOrigin ('');
+		var material = new THREE.MeshLambertMaterial({
+		map:loader.load( "https://i.imgur.com/uDsEfox.jpg" )});
+		var black = new THREE.MeshLambertMaterial({
+		map: loader.load( "https://i.imgur.com/dBsfkR6.jpg" )});
+		var boardTexture = [
+		black, 
+		black,
+		black, 
+		black, 
+		new THREE.MeshLambertMaterial({
+		map: loader.load( "https://i.imgur.com/ypg3IJm.jpg" )}),
+		black 
+		];
+		var boardMaterial = new THREE.MultiMaterial(boardTexture);
+		var board = new THREE.Mesh(new THREE.CubeGeometry(1.8,1.05,0.05),boardMaterial);
 		smoothedRoot.add(board);
-		board.position.set(2.065,1,0);
-		var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.09,0.005,20,100),new THREE.MeshNormalMaterial());
+		
+		board.position.set(0.715,2.775,-4);
+		var mesh = new THREE.Mesh(new THREE.CubeGeometry(0.16,0.02,0.08),material);
+		
+		mesh.position.set(0.715,2.44,-3.935);
+		smoothedRoot.add(mesh);
+		var mesh2;
+		mesh2 = new THREE.Mesh(new THREE.CubeGeometry(0.16,0.16,0.02),material);
+		mesh2.position.set(0.715,2.44,-3.965);
+		smoothedRoot.add(mesh2);
+		var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.225,0.1,20,100),material);
+
 		hoop.rotation.x = Math.PI/2;
-		hoop.position.set(1.982,1,0)
+		hoop.position.set(0.715,2.52,-3.675);
 		smoothedRoot.add(hoop);
+
+		var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.2,0.2,1.3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")}));
+		pillar.position.set(0.715,0,-5.725);
+		smoothedRoot.add(pillar);
+
+		var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15,0.15,2,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		pillar2.position.set(0.715,1.65,-5.725);
+		smoothedRoot.add(pillar2);
+
+		var pillar3 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15,0.15,1.7,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		pillar3.position.set(0.715,2.65,-4.875);
+		pillar3.rotation.x = Math.PI/2;
+		smoothedRoot.add(pillar3);
+
+		var splice = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 32,0), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		splice.position.set(0.715,2.65,-5.725);
+		splice.rotation.y= Math.PI/2;
+		smoothedRoot.add(splice);
 	}
 	
 	function init(){
@@ -264,21 +308,20 @@
 		// add a torus knot	
 		
 		var material = new THREE.MeshBasicMaterial({
-			map:loader.load("https://i.imgur.com/3RUoApc.png"),
+			map:loader.load("https://i.imgur.com/T7j1znu.png"),
 			side:THREE.DoubleSide
 		})
 		var floor	=new THREE.Mesh(new THREE.PlaneGeometry(2.97,2.1,20,20),material);
 		floor.position.x = 0.715;
 		floor.rotation.x = -Math.PI/2;
 		arWorldRoot.add( floor );
-		
+
 		//build danboard
 		buildDanboard();
 		buildBasketballStands();
-		
 		var ball = new THREE.Mesh(new THREE.SphereGeometry(0.19/Math.PI, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
 		arWorldRoot.add(ball);
-		ball.position.set(1.26,0.9,0);
+		ball.position.set(1.26,3.3,0);
 		var AmbientLight = new THREE.AmbientLight(0x888888,2); // soft white light
 		scene.add(AmbientLight);
 		
