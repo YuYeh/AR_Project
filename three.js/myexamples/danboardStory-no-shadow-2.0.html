@@ -48,7 +48,7 @@
 			map: loader.load( "https://i.imgur.com/A7tfkyx.jpg" )})// -Z
 		];
 		var material = new THREE.MultiMaterial(faceTexture);
-		var headMesh = new THREE.Mesh(new THREE.CubeGeometry(1.52/3,0.92/3,0.89/3),material);
+		var headMesh = new THREE.Mesh(new THREE.CubeGeometry(1.52/4,0.92/4,0.89/4),material);
 
 		var skin = new THREE.MeshLambertMaterial({
 			map: loader.load('https://i.imgur.com/ZSklu60.jpg')});
@@ -66,39 +66,39 @@
 
 
 		var bodyMaterial = new THREE.MultiMaterial(bodyTexture);
-		var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(0.76/3, 1.02/3, 0.51/3),bodyMaterial);
-		headMesh.position.y = 0.46/3;
+		var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(0.76/4, 1.02/4, 0.51/4),bodyMaterial);
+		headMesh.position.y = 0.46/4;
 		head = new THREE.Object3D();
 		head.add(headMesh)
-		head.position.y = 0.51/3;
+		head.position.y = 0.51/4;
 		bodyMesh.add(head);
 
-		leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/3, 0.13/3, 0.25/3, 32), skin);
-		var leftArm = new THREE.Mesh(new THREE.CubeGeometry(0.25/3, 0.25/3, 1.02/3),skin);
-		leftArm.position.z = 0.51/3;
+		leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/4, 0.13/4, 0.25/4, 32), skin);
+		var leftArm = new THREE.Mesh(new THREE.CubeGeometry(0.25/4, 0.25/4, 1.02/4),skin);
+		leftArm.position.z = 0.51/4;
 		leftjoint.add(leftArm);
-		leftjoint.position.set(0.51/3,0.32/3,0)
+		leftjoint.position.set(0.51/4,0.32/4,0)
 		bodyMesh.add(leftjoint);
-		rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/3, 0.13/3, 0.25/3, 32), skin);
+		rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/4, 0.13/4, 0.25/4, 32), skin);
 		var rightArm = leftArm.clone();
-		rightArm.position.z = 0.51/3;
+		rightArm.position.z = 0.51/4;
 		rightjoint.add(rightArm);
-		rightjoint.position.set(-0.51/3,0.32/3,0);
+		rightjoint.position.set(-0.51/4,0.32/4,0);
 		bodyMesh.add(rightjoint);
 		helfBody = new THREE.Object3D();
-		bodyMesh.position.y = 0.51/3;
+		bodyMesh.position.y = 0.51/4;
 		helfBody.add(bodyMesh);
 
 		body = new THREE.Object3D();
 		body.add(helfBody);
-		var leg = new THREE.Mesh(new THREE.CubeGeometry(0.32/3, 0.83/3, 0.51/3),skin);
+		var leg = new THREE.Mesh(new THREE.CubeGeometry(0.32/4, 0.83/4, 0.51/4),skin);
 		leg.position.y = -0.415/3;
-		var cy = new THREE.Mesh(new THREE.CylinderGeometry(0.1/3, 0.1/3, 0.02/3, 32), skin);
+		var cy = new THREE.Mesh(new THREE.CylinderGeometry(0.1/4, 0.1/4, 0.02/4, 32), skin);
 		cy.rotation.z = Math.PI/2;
 
 		leftLeg = new THREE.Object3D();
 		leftLeg.add(leg);
-		leftLeg.position.set(0.19/3,-0.06/3,0);
+		leftLeg.position.set(0.19/4,-0.06/4,0);
 		body.add(leftLeg);
 
 		leftLeg.add(cy);
@@ -107,37 +107,37 @@
 		rightLeg = new THREE.Object3D();
 		rightLeg.add(cy2);
 		rightLeg.add(leg2);
-		rightLeg.position.set(-0.19/3,-0.06/3,0);
+		rightLeg.position.set(-0.19/4,-0.06/4,0);
 
 		body.add(rightLeg);
 		skirt = new THREE.Object3D();
-		var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(0.76/3,0.38/3,0.01/3),skin);
-		skirtMesh.position.y= -0.19/3;
+		var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(0.76/4,0.38/4,0.01/4),skin);
+		skirtMesh.position.y= -0.19/4;
 		skirt.add(skirtMesh);
-		skirt.position.z = 0.25/3;
+		skirt.position.z = 0.25/4;
 		skirt.rotation.x = -0.1;
 		helfBody.add(skirt);
 		skirt2 = new THREE.Object3D();
 		var skirt2Mesh = skirtMesh.clone();
 		skirt2.add(skirt2Mesh);
-		skirt2.position.z = -0.25/3;
+		skirt2.position.z = -0.25/4;
 		skirt2.rotation.x = 0.1;
 		helfBody.add(skirt2);
 		skirt3 = new THREE.Object3D();
-		var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.01/3,0.38/3,0.51/3),skin);
-		skirt3Mesh.position.y=-0.25/3;
+		var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.01/4,0.38/4,0.51/4),skin);
+		skirt3Mesh.position.y=-0.25/4;
 		skirt3.add(skirt3Mesh);
-		skirt3.position.x = 0.38/3;
+		skirt3.position.x = 0.38/4;
 		skirt3.rotation.z = 0.1;
 		helfBody.add(skirt3);
 		skirt4 = new THREE.Object3D();
 		var skirt4Mesh = skirt3Mesh.clone();
 		skirt4.add(skirt4Mesh);
-		skirt4.position.x = 0.38/3;
+		skirt4.position.x = 0.38/4;
 		skirt4.rotation.z = -0.1;
 		helfBody.add(skirt4);
 		smoothedRoot.add(body);
-		body.position.set(0.715,0.66/3,0.15);
+		body.position.set(0.715,0.66/4,0.15);
 		
 		head.rotation.x = -0.2;
 		body.rotation.x = 0.3538825855916411;
