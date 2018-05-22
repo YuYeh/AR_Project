@@ -173,53 +173,56 @@
 		var buildBasketballStands = new THREE.Object3D();
 		//board.position.set(0.715,2.775/3,-0.6);
 		//smoothedRoot.add(board);
-		board.position.y = 2.775/3;
+		board.position.y = 3.4/3;
 		buildBasketballStands.add(board);
 		
 		var mesh = new THREE.Mesh(new THREE.CubeGeometry(0.16/3,0.02/3,0.08/3),material);
 		//mesh.position.set(0.715,2.51/3,-0.573);
 		//smoothedRoot.add(mesh);
-		mesh.position.set(0,2.51/3,0.027);
+		mesh.position.set(0,3.135/3,0.027);
 		buildBasketballStands.add(mesh);
 		
 		var mesh2;
 		mesh2 = new THREE.Mesh(new THREE.CubeGeometry(0.16/3,0.16/3,0.02/3),material);
 		//mesh2.position.set(0,2.44/3,-0.589);
 		//smoothedRoot.add(mesh2);
-		mesh2.position.set(0,2.44/3,0.011);
+		mesh2.position.set(0,3.065/3,0.011);
 		buildBasketballStands.add(mesh2);
 		
 		var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.225/3,0.01/3,20,100),material);
 		hoop.rotation.x = Math.PI/2;
 		//hoop.position.set(0.715,2.51/3,-0.497);
 		//smoothedRoot.add(hoop);
-		hoop.position.set(0,2.51/3,0.103);
+		hoop.position.set(0,3.135/3,0.103);
 		buildBasketballStands.add(hoop);
 
 		var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.2/3,0.2/3,1.3/3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")}));
 		//pillar.position.set(0.715,0,-5.725/3);
 		//smoothedRoot.add(pillar);
-		pillar.position.set(0,0,-0.568);
+		//pillar.position.set(0,0,-0.568);
+		pillar.position.set(0,0.65/3,-0.418);
 		buildBasketballStands.add(pillar);
 		
 		var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15/3,0.15/3,2/3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
 		//pillar2.position.set(0.715,1.65/3,-5.725/3);
 		//smoothedRoot.add(pillar2);
-		pillar2.position.set(0,1.65/3,-0.568);
+		//pillar2.position.set(0,1.65/3,-0.568);
+		pillar2.position.set(0,2.3/3,-0.418);
 		buildBasketballStands.add(pillar2);
 		
-		var pillar3 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15/3,0.15/3,1.7/3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		var pillar3 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15/3,0.15/3,1.7/3-0.15,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
 		pillar3.rotation.x = Math.PI/2;
 		//pillar3.position.set(0.715,2.65/3,-1);
 		//smoothedRoot.add(pillar3);
-		pillar3.position.set(0,2.65/3,-0.288);
+		pillar3.position.set(0,3.3/3,-0.213);
 		buildBasketballStands.add(pillar3);
 		
 		var splice = new THREE.Mesh(new THREE.SphereGeometry(0.15/3, 32, 32,0), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
 		splice.rotation.y= Math.PI/2;
 		//splice.position.set(0.715,2.65/3,-5.725/3);
 		//smoothedRoot.add(splice);
-		splice.position.set(0,2.65/3,-0.568);
+		//splice.position.set(0,2.65/3,-0.568);
+		splice.position.set(0,3.3/3,-0.418);
 		buildBasketballStands.add(splice);
 		
 		smoothedRoot.add(buildBasketballStands);
@@ -229,7 +232,7 @@
 	function init(){
 	
 		renderer	= new THREE.WebGLRenderer({
-			// antialias	: true,
+			antialias: true,
 			alpha: true
 		});
 		renderer.setClearColor(new THREE.Color('lightgrey'), 0)
@@ -337,7 +340,7 @@
 		//build danboard
 		buildDanboard();
 		buildBasketballStands();
-		var ball = new THREE.Mesh(new THREE.SphereGeometry(0.225/Math.PI, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
+		var ball = new THREE.Mesh(new THREE.SphereGeometry(0.225/Math.PI*0.8, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
 		arWorldRoot.add(ball);
 		ball.position.set(0.715,1,0);
 		var AmbientLight = new THREE.AmbientLight(0x888888,2); // soft white light
