@@ -235,6 +235,10 @@
 			antialias: true,
 			alpha: true
 		});
+		
+		renderer.shadowMap.type = THREE.PCFSoftShadowMap
+		renderer.shadowMap.enabled = true;
+		
 		renderer.setClearColor(new THREE.Color('lightgrey'), 0)
 		// renderer.setPixelRatio( 1/2 );
 		renderer.setSize( window.innerWidth, window.innerHeight );
