@@ -13,7 +13,7 @@
 <script src="../src/threex/threex-artoolkitcontext.js"></script>
 <script src="../src/threex/threex-arbasecontrols.js"></script>
 <script src='marker-training/threex-armarkercontrols.js'></script>
-<script src="../src/threex/threex-armarkercontrols.js"></script>
+<!--<script src="../src/threex/threex-armarkercontrols.js"></script>-->
 <script>THREEx.ArToolkitContext.baseURL = '../'</script>
 
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'><div style='position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
@@ -335,8 +335,8 @@
 
 		var markerControls = new THREEx.ArMarkerControls(arToolkitContext, camera, {
 			type : 'pattern',
-			//patternUrl : 'marker-training/pattern-pattFile/basketball.patt',
-			patternUrl : 'marker-training/pattern-pattFile/patt.hiro',
+			patternUrl : 'marker-training/pattern-pattFile/basketball.patt',
+			//patternUrl : 'marker-training/pattern-pattFile/patt.hiro',
 			//patternUrl : THREEx.ArToolkitContext.baseURL + 'marker-training/pattern-pattFile/patt.hiro',
 			// as we controls the camera, set changeMatrixMode: 'cameraTransformMatrix'
 			changeMatrixMode: 'cameraTransformMatrix'
