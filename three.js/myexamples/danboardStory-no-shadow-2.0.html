@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!-- three.js library -->
+<script src='../examples/vendor/three.js/build/three.min.js'></script>
+<script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<!-- ar.js -->
+<script src="../build/ar.js"></script>
+<script>THREEx.ArToolkitContext.baseURL = '../'</script>
+
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;'><div style='position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
+	<a href="https://github.com/jeromeetienne/AR.js/" target="_blank">AR.js</a> - three.js mobile performance
+	<br/>
+	Contact me any time at <a href='https://twitter.com/jerome_etienne' target='_blank'>@jerome_etienne</a>
+</div><script>
+	var renderer, scene, camera, stats;
+	var arToolkitSource, arToolkitContext;
+	var smoothedControls, markerRoot, smoothedRoot;
+	
+	var loader = new THREE.TextureLoader();
+	var head, leftjoint, rightjoint, leftLeg, rightLeg, body, helfBody;
+	var skirt, skirt2, skirt3, skirt4;
+	var gcontrols;
+	
+	init();
+	animate();
+	
+	function buildDanboard() {
+		loader.setCrossOrigin (''); 
+
+		var faceTexture = [
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/PiFxBnA.jpg" )}),// +x
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: right = loader.load( "https://i.imgur.com/9KGDYiy.jpg")}),// -x
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/xIbygcS.png" )}),// +y
+			new THREE.MeshLambertMaterial({ visible: false }),// -Y
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/UQjjOu2.jpg" )}),// +z
+			new THREE.MeshLambertMaterial({
+			side:THREE.DoubleSide,
+			map: loader.load( "https://i.imgur.com/A7tfkyx.jpg" )})// -Z
+		];
+		var material = new THREE.MultiMaterial(faceTexture);
+		var headMesh = new THREE.Mesh(new THREE.CubeGeometry(1.52,0.92,0.89),material);
+
+		var skin = new THREE.MeshLambertMaterial({
+			map: loader.load('https://i.imgur.com/ZSklu60.jpg')});
+
+		var bodyTexture = [
+			skin,
+			skin,
+			skin,
+			skin,
+			new THREE.MeshLambertMaterial({
+					map: loader.load('https://i.imgur.com/uUZxpgM.jpg')}),
+			new THREE.MeshLambertMaterial({
+					map: loader.load('https://i.imgur.com/8UOpKrK.jpg')})
+		];
+
+
+		var bodyMaterial = new THREE.MultiMaterial(bodyTexture);
+		var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(0.76, 1.02, 0.51),bodyMaterial);
+		headMesh.position.y = 0.46;
+		head = new THREE.Object3D();
+		head.add(headMesh)
+		head.position.y = 0.51;
+		bodyMesh.add(head);
+
+		leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.25, 32), skin);
+		var leftArm = new THREE.Mesh(new THREE.CubeGeometry(0.25, 0.25, 1.02),skin);
+		leftArm.position.z = 0.51;
+		leftjoint.add(leftArm);
+		leftjoint.position.set(0.51,0.32,0)
+		bodyMesh.add(leftjoint);
+		rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.25, 32), skin);
+		var rightArm = leftArm.clone();
+		rightArm.position.z = 0.51;
+		rightjoint.add(rightArm);
+		rightjoint.position.set(-0.51,0.32,0);
+		bodyMesh.add(rightjoint);
+		helfBody = new THREE.Object3D();
+		bodyMesh.position.y = 0.51;
+		helfBody.add(bodyMesh);
+
+		body = new THREE.Object3D();
+		body.add(helfBody);
+		var leg = new THREE.Mesh(new THREE.CubeGeometry(0.32, 0.83, 0.51),skin);
+		leg.position.y = -0.415;
+		var cy = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 32), skin);
+		cy.rotation.z = Math.PI/2;
+
+		leftLeg = new THREE.Object3D();
+		leftLeg.add(leg);
+		leftLeg.position.set(0.19,-0.06,0);
+		body.add(leftLeg);
+
+		leftLeg.add(cy);
+		var leg2 = leg.clone();
+		var cy2 = cy.clone();
+		rightLeg = new THREE.Object3D();
+		rightLeg.add(cy2);
+		rightLeg.add(leg2);
+		rightLeg.position.set(-0.19,-0.06,0);
+
+		body.add(rightLeg);
+		skirt = new THREE.Object3D();
+		var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(0.76,0.38,0.01),skin);
+		skirtMesh.position.y=-0.19;
+		skirt.add(skirtMesh);
+		skirt.position.z = 0.25;
+		skirt.rotation.x = -0.1;
+		helfBody.add(skirt);
+		skirt2 = new THREE.Object3D();
+		var skirt2Mesh = skirtMesh.clone();
+		skirt2.add(skirt2Mesh);
+		skirt2.position.z = -0.25;
+		skirt2.rotation.x = 0.1;
+		helfBody.add(skirt2);
+		skirt3 = new THREE.Object3D();
+		var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.01,0.38,0.51),skin);
+		skirt3Mesh.position.y=-0.25;
+		skirt3.add(skirt3Mesh);
+		skirt3.position.x = 0.38;
+		skirt3.rotation.z = 0.1;
+		helfBody.add(skirt3);
+		skirt4 = new THREE.Object3D();
+		var skirt4Mesh = skirt3Mesh.clone();
+		skirt4.add(skirt4Mesh);
+		skirt4.position.x = 0.38;
+		skirt4.rotation.z = -0.1;
+		helfBody.add(skirt4);
+		smoothedRoot.add(body);
+		body.position.set(0.715,0.66,0.15);
+		
+		head.rotation.x = -0.2;
+		body.rotation.x = 0.3538825855916411;
+		body.rotation.y = 3.118206107781434;
+		body.rotation.z = 0;
+		leftjoint.rotation.y =  0.18283843012080525;
+		leftjoint.rotation.x = -0.3141592653589793;
+		rightjoint.rotation.y = -0.23757185514875;
+		rightjoint.rotation.x = -0.3141592653589793;
+		leftLeg.rotation.x = 0.2719878687620627;
+		leftLeg.rotation.z = 0.34188034188034205;
+		rightLeg.rotation.x = 0.283016266887235;
+		rightLeg.rotation.z = -0.262889440308795;
+	}
+	
+	function buildBasketballStands() {
+		loader.setCrossOrigin ('');
+		var material = new THREE.MeshLambertMaterial({
+		map:loader.load( "https://i.imgur.com/uDsEfox.jpg" )});
+		var black = new THREE.MeshLambertMaterial({
+		map: loader.load( "https://i.imgur.com/dBsfkR6.jpg" )});
+		var boardTexture = [
+		black, 
+		black,
+		black, 
+		black, 
+		new THREE.MeshLambertMaterial({
+		map: loader.load( "https://i.imgur.com/ypg3IJm.jpg" )}),
+		black 
+		];
+		var boardMaterial = new THREE.MultiMaterial(boardTexture);
+		var board = new THREE.Mesh(new THREE.CubeGeometry(1.8,1.05,0.05),boardMaterial);
+		smoothedRoot.add(board);
+		
+		board.position.set(0.715,2.775,-4);
+		var mesh = new THREE.Mesh(new THREE.CubeGeometry(0.16,0.02,0.08),material);
+		
+		mesh.position.set(0.715,2.44,-3.935);
+		smoothedRoot.add(mesh);
+		var mesh2;
+		mesh2 = new THREE.Mesh(new THREE.CubeGeometry(0.16,0.16,0.02),material);
+		mesh2.position.set(0.715,2.44,-3.965);
+		smoothedRoot.add(mesh2);
+		var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.225,0.1,20,100),material);
+
+		hoop.rotation.x = Math.PI/2;
+		hoop.position.set(0.715,2.52,-3.675);
+		smoothedRoot.add(hoop);
+
+		var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.2,0.2,1.3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")}));
+		pillar.position.set(0.715,0,-5.725);
+		smoothedRoot.add(pillar);
+
+		var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15,0.15,2,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		pillar2.position.set(0.715,1.65,-5.725);
+		smoothedRoot.add(pillar2);
+
+		var pillar3 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15,0.15,1.7,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		pillar3.position.set(0.715,2.65,-4.875);
+		pillar3.rotation.x = Math.PI/2;
+		smoothedRoot.add(pillar3);
+
+		var splice = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 32,0), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		splice.position.set(0.715,2.65,-5.725);
+		splice.rotation.y= Math.PI/2;
+		smoothedRoot.add(splice);
+	}
+	
+	function init(){
+	
+		renderer	= new THREE.WebGLRenderer({
+			// antialias	: true,
+			alpha: true
+		});
+		renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+		// renderer.setPixelRatio( 1/2 );
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.domElement.style.position = 'absolute'
+		renderer.domElement.style.top = '0px'
+		renderer.domElement.style.left = '0px'
+		document.body.appendChild( renderer.domElement );
+		
+		// init scene and camera
+		scene	= new THREE.Scene();
+		
+		//////////////////////////////////////////////////////////////////////////////////
+		//		Initialize a basic camera
+		//////////////////////////////////////////////////////////////////////////////////
+
+		// Create a camera
+		camera = new THREE.Camera();
+		scene.add(camera);
+		////////////////////////////////////////////////////////////////////////////////
+		//          handle arToolkitSource
+		////////////////////////////////////////////////////////////////////////////////
+
+		arToolkitSource = new THREEx.ArToolkitSource({
+			// to read from the webcam 
+			sourceType : 'webcam',
+
+			// to read from an image
+			// sourceType : 'image',
+			// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/images/img.jpg',		
+
+			// to read from a video
+			// sourceType : 'video',
+			// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/videos/headtracking.mp4',		
+		})
+
+		arToolkitSource.init(function onReady(){
+			onResize()
+		})
+		
+		// handle resize
+		window.addEventListener('resize', function(){
+			onResize()
+		})
+		
+		////////////////////////////////////////////////////////////////////////////////
+		//          initialize arToolkitContext
+		////////////////////////////////////////////////////////////////////////////////
+		
+
+		// create atToolkitContext
+		arToolkitContext = new THREEx.ArToolkitContext({
+			cameraParametersUrl: THREEx.ArToolkitContext.baseURL + '../data/data/camera_para.dat',
+			detectionMode: 'mono',
+			maxDetectionRate: 30,
+			canvasWidth: 80*3,
+			canvasHeight: 60*3,
+		})
+		// initialize it
+		arToolkitContext.init(function onCompleted(){
+			// copy projection matrix to camera
+			camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+		})
+		
+		////////////////////////////////////////////////////////////////////////////////
+		//          Create a ArMarkerControls
+		////////////////////////////////////////////////////////////////////////////////
+		
+		markerRoot = new THREE.Group
+		scene.add(markerRoot)
+		var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+			type : 'pattern',
+			//patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/one.patt'
+			patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.hiro'
+			// patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.kanji'
+		})
+
+		// build a smoothedControls
+		smoothedRoot = new THREE.Group()
+		scene.add(smoothedRoot)
+		
+		smoothedControls = new THREEx.ArSmoothedControls(smoothedRoot, {
+			lerpPosition: 0.4,
+			lerpQuaternion: 0.3,
+			lerpScale: 1,
+		})
+		
+		//////////////////////////////////////////////////////////////////////////////////
+		//		add an object in the scene
+		//////////////////////////////////////////////////////////////////////////////////
+		loader.setCrossOrigin ('');
+		var arWorldRoot = smoothedRoot
+		// add a torus knot	
+		
+		var material = new THREE.MeshBasicMaterial({
+			map:loader.load("https://i.imgur.com/T7j1znu.png"),
+			side:THREE.DoubleSide
+		})
+		var floor	=new THREE.Mesh(new THREE.PlaneGeometry(2.97,2.1,20,20),material);
+		floor.position.x = 0.715;
+		floor.rotation.x = -Math.PI/2;
+		arWorldRoot.add( floor );
+
+		//build danboard
+		buildDanboard();
+		buildBasketballStands();
+		var ball = new THREE.Mesh(new THREE.SphereGeometry(0.19/Math.PI, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
+		arWorldRoot.add(ball);
+		ball.position.set(1.26,3.3,0);
+		var AmbientLight = new THREE.AmbientLight(0x888888,2); // soft white light
+		scene.add(AmbientLight);
+		
+		//////////////////////////////////////////////////////////////////////////////////
+		//		render the whole thing on the page
+		//////////////////////////////////////////////////////////////////////////////////
+		stats = new Stats();
+		document.body.appendChild( stats.dom );
+		// render the scene
+		
+		
+	}
+	
+	
+	function onResize(){
+		arToolkitSource.onResize()	
+		arToolkitSource.copySizeTo(renderer.domElement)	
+		if( arToolkitContext.arController !== null ){
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)	
+		}	
+	}
+	
+	function animate() {
+		
+		requestAnimationFrame( animate );
+		renderer.render( scene, camera );
+		stats.update();
+		
+		if( arToolkitSource.ready === false )	return
+		arToolkitContext.update( arToolkitSource.domElement )
+		
+		smoothedControls.update(markerRoot)	
+		
+	}	
+
+	// run the rendering loop
+	/*var lastTimeMsec= null
+	requestAnimationFrame(function animate(nowMsec){
+		// keep looping
+		
+		// measure time
+		lastTimeMsec	= lastTimeMsec || nowMsec-1000/60
+		var deltaMsec	= Math.min(200, nowMsec - lastTimeMsec)
+		lastTimeMsec	= nowMsec
+		// call each update function
+		onRenderFcts.forEach(function(onRenderFct){
+			onRenderFct(deltaMsec/1000, nowMsec/1000)
+		})
+	})*/
+</script></body>
