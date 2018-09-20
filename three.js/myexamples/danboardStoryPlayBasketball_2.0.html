@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 <!-- three.js library -->
-<!--script src='../examples/vendor/three.js/build/three.js'></script-->
-<script src='../examples/vendor/three.js/build/three.min.js'></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+<!--script src='../examples/vendor/three.js/build/three.js'></script>
+<script src='../examples/vendor/three.js/build/three.min.js'></script-->
 <script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 
 <!-- jsartookit -->
 <script src="../vendor/jsartoolkit5/build/artoolkit.min.js"></script>
@@ -21,9 +23,20 @@
 <script src="vendor/Detector.js"></script>
 <script src="vendor/Cloth.js"></script-->
 
+<script type="text/javascript">
+  document.oncontextmenu = function() {
+    return false;
+  }
+</script>
+
 <script src = "vendor/BasketballStands.js"></script>
 
-<body style='margin : 0px; overflow: hidden; font-family: Monospace;'><script>
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
+<div style='position:absolute;top:15vh;text-align:center;color:yellow;width:100%'>
+<div style='position:absolute;top:15vh;text-align:center;color:yellow;width:100%'>
+	<p id='ratio'></p>
+	<p id='power'></p>
+</div><script>
 	
 	/* testing cloth simulation(模擬) */
 	class Ball {
@@ -42,6 +55,8 @@
 			this.obj = new THREE.Object3D();
 			let mesh = new THREE.Mesh (new THREE.SphereGeometry(radius, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}))
 			this.obj.add (mesh)
+			mesh.castShadow = true;
+			mesh.receiveShadow = true;
 		}
 
 		update(dt) {
@@ -52,15 +67,17 @@
 			this.pos.add (this.vel.clone().multiplyScalar(dt)) 
 
 			this.obj.position.copy (this.pos);
-			if(this.obj.position.y < 38/Math.PI) {
-
+			//if(this.obj.position.y < 38/Math.PI) {
+			if(this.obj.position.y < 0.05) {
 			if(this.count >2){ 
 				tmp = !tmp;
-				nready = !nready;
-				//console.log(tmp)
 				this.obj.position.copy(target.getWorldPosition());
 				this.pos.copy(this.obj.position);
 				this.vel.copy(v0);
+				posReset = !posReset;
+				nready = !nready;
+				//chargeUp.position.x = -1.82*halfW;
+				chargeUp.position.x = -1.55*halfW;
 			}
 
 			if(this.count ===0) {
@@ -89,8 +106,24 @@
 			//this.normal.applyEuler (new THREE.Euler (0,0,theta))
 		}
 	}
-	
-	
+
+	class Button {
+		constructor (size, x, y){
+		this.size = size;
+		this.centerX = x;
+		this.centerY = y;
+		}
+		d1To (v) { // 1-norm
+			return Math.abs (v[0]-this.centerX) + Math.abs(v[1]-this.centerY);
+		}
+		d2To (v) { // 2-norm
+			return Math.sqrt ( (v[0]-this.centerX)*(v[0]-this.centerX) 
+				+ (v[1]-this.centerY)*(v[1]-this.centerY) );
+		}
+		dInfTo (v) { // inf-norm
+			return Math.max( Math.abs (v[0]-this.centerX), Math.abs(v[1]-this.centerY) )
+		}
+	}
 	
 	class Agent {
 		constructor(pos, mesh) {
@@ -101,8 +134,12 @@
 			this.size = 1;
 			this.mesh = mesh;
 			this.MAXSPEED = 2.5;
-			this.ARRIVAL_R = 0.1;
-			//this.nbhd = [];             
+			this.ARRIVAL_R = 0.05;
+			this.stop = false;
+			this.stand = false;
+			this.walk = 1;
+			//this.nbhd = [];
+			this.mesh.position.copy(pos);			
 		}
 		update(dt) {
 			this.accumulateForce();
@@ -110,41 +147,56 @@
 			// velocity modulation
 			let diff = this.target.clone().sub(this.pos)
 			let dst = diff.length();
-			//console.log(this.pos)
 			if (dst < this.ARRIVAL_R) {
 				//this.vel.setLength(dst);
 				this.vel.setLength(0);
 				this.pos.copy(this.target);
 			}
 
-
 			//console.log(diff.length())
-			if(diff.length().toFixed() >0) {
-				if(leftLeg.rotation.x == 0.7) walk = 2;
-				if(rightLeg.rotation.x == 0.7) walk = 1;
-				switch(walk) {
+			if(this.stop) {
+				if(leftLeg.rotation.x == 0.7) this.walk = 2;
+				if(rightLeg.rotation.x == 0.7) this.walk = 1;
+				switch(this.walk) {
 					case 1:
-					leftLeg.rotation.x +=0.1;
-					rightLeg.rotation.x -=0.1;
-					break;
+						leftLeg.rotation.x +=0.1;
+						rightLeg.rotation.x -=0.1;
+						break;
 					case 2:
-					leftLeg.rotation.x -=0.1;
-					rightLeg.rotation.x +=0.1;
+						leftLeg.rotation.x -=0.1;
+						rightLeg.rotation.x +=0.1;
 				}
-				if(leftLeg.rotation.x < rightLeg.rotation.x ) {
-					skirt.rotation.x = leftLeg.rotation.x * 1.2;
-				} else {
-					skirt.rotation.x = rightLeg.rotation.x * 1.2;
-				}
+			} 
 
-				if(leftLeg.rotation.x > 0.1 ||rightLeg.rotation.x > 0.1) {
-					if(leftLeg.rotation.x > rightLeg.rotation.x ) {
-						skirt2.rotation.x =leftLeg.rotation.x * 1.2;
-					} else {
-						skirt2.rotation.x = rightLeg.rotation.x * 1.2;
-					}
-				}
+			if(this.stand){
+				if(leftLeg.rotation.x > 0) {
+					leftLeg.rotation.x -= 0.1;
+					rightLeg.rotation.x += 0.1;
+					if(leftLeg.rotation.x < 0.1)
+						this.stand = !this.stand;
+
+				} else {
+					leftLeg.rotation.x += 0.1;
+					rightLeg.rotation.x -= 0.1; 
+					if(leftLeg.rotation.x > -0.1)
+						this.stand = !this.stand;
+				} 
+			}
+
+			if(leftLeg.rotation.x < rightLeg.rotation.x ) {
+				skirt.rotation.x = leftLeg.rotation.x * 1.2;
 			} else {
+				skirt.rotation.x = rightLeg.rotation.x * 1.2;
+			}
+
+			if(leftLeg.rotation.x > 0.1 ||rightLeg.rotation.x > 0.1) {
+				if(leftLeg.rotation.x > rightLeg.rotation.x ) {
+					skirt2.rotation.x =leftLeg.rotation.x * 1.2;
+				} else {
+					skirt2.rotation.x = rightLeg.rotation.x * 1.2;
+				}
+			}
+			if(diff.length() <0.1){
 				let destination  = objects[2].obj.getWorldPosition()
 				destination.y = body.position.y;
 				let p0 = new THREE.Vector3(0,0,-1);
@@ -152,30 +204,49 @@
 				let p1 = ball.vel.clone();
 				p1.y = 0;
 				let vangle = p1.angleTo(destination.clone().sub(body.position));
-				//console.log(vangle);
-				if(body.position.x > destination.x) {
-					if( body.rotation.y < Math.PI + bangle)
-						body.rotation.y +=0.05;
-					else 
-						body.rotation.y -=0.05;
-				}
 
-				else {
-					if( body.rotation.y > Math.PI - bangle)
-						body.rotation.y -=0.05;
-					else 
-						body.rotation.y +=0.05;
-				}
-				if(ball.vel.x > 0) {
-					ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),vangle);
-				} else {
-					ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),-vangle);
-				}
+				if(this.stop) {
+					if(body.position.x > destination.x) {
+						if( body.rotation.y < Math.PI + bangle) {
+							body.rotation.y += 0.05;
+							if( body.rotation.y > Math.PI + bangle) {
+								this.stop = !this.stop
+								this.stand = !this.stand;
+							} 
 
+						} else if( body.rotation.y > Math.PI + bangle) {
+							body.rotation.y -= 0.05;
+							if( body.rotation.y < Math.PI + bangle) {
+								this.stop = !this.stop
+								this.stand = !this.stand;
+							}
+						}
+					} else {
+						if( body.rotation.y > Math.PI - bangle) {
+							body.rotation.y -= 0.05;
+							if( body.rotation.y < Math.PI - bangle) {
+								this.stop = !this.stop
+								this.stand = !this.stand;
+							}
+						} else if( body.rotation.y < Math.PI - bangle) {
+							body.rotation.y += 0.05;
+							if( body.rotation.y > Math.PI - bangle) {
+								this.stop = !this.stop
+								this.stand = !this.stand;
+							}
+						}
+					}
+					if(ball.vel.x > 0) {
+						ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),vangle);
+					} else {
+						ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),-vangle);
+					}
+				}  
 			}
 			this.pos.add(this.vel.clone().multiplyScalar(dt))
 			this.mesh.position.copy(this.pos)
 			if(nready)ball.moveTo(target.getWorldPosition());
+			initbp.copy(ball.pos)
 		}
 		distanceTo(otherAgent) {
 			return this.pos.distanceTo(otherAgent.pos)
@@ -211,27 +282,10 @@
 			push.add(point.setLength(1 / point.length()))
 			}
 			this.force.add(push)*/
+
 		}
 		rUpdate() {
 			this.stop = !this.stop;
-		}
-	}
-
-	class Button {
-		constructor (size, x, y){
-		this.size = size;
-		this.centerX = x;
-		this.centerY = y;
-		}
-		d1To (v) { // 1-norm
-			return Math.abs (v[0]-this.centerX) + Math.abs(v[1]-this.centerY);
-		}
-		d2To (v) { // 2-norm
-			return Math.sqrt ( (v[0]-this.centerX)*(v[0]-this.centerX) 
-				+ (v[1]-this.centerY)*(v[1]-this.centerY) );
-		}
-		dInfTo (v) { // inf-norm
-			return Math.max( Math.abs (v[0]-this.centerX), Math.abs(v[1]-this.centerY) )
 		}
 	}
 	
@@ -261,24 +315,27 @@
 	var loader = new THREE.TextureLoader();
 	var leftjoint, rightjoint, leftLeg, rightLeg, body, helfBody;
 	var skirt, skirt2, skirt3, skirt4;
-	var tmp = false, angel = Math.PI/3;
+	var tmp = false;
 	var clothGeometry;
 	
 	var objects = [];
 	var doughnutCP,cpball,update = false;
 	var walk = 1,stand = false;
 	
-	var target,v0,theta = Math.PI/3;
+	var target,v0,theta =Math.PI/18*7.3;
 	
-	var raycaster,puck;
-	var pickables;
-	var agent;
-	
+	var raycaster;
+
 	var mouse = new THREE.Vector2();
 	var whRatio, halfW, halfH;
-	var button1;
-	var cubeSpin = false,ready = false;
+	var button1,puck;
+	var cubeSpin = false,ready = false,posReset = false;
+	var chargeUp;
+	var prevangle;
+	var doChargeUp = false, type = 1, power;
 	var nready = true;
+	var agent, line, line2, t;
+	var cpball,initbp;
 	
 	init();
 	animate();
@@ -306,7 +363,7 @@
 		];
 		var material = new THREE.MultiMaterial(faceTexture);
 		//var headMesh = new THREE.Mesh(new THREE.CubeGeometry(1.52/4,0.92/4,0.89/4),material);
-		var headMesh = new THREE.Mesh(new THREE.CubeGeometry(96,58,56),material);
+		var headMesh = new THREE.Mesh(new THREE.CubeGeometry(96/200,58/200,56/200),material);
 		var skin = new THREE.MeshLambertMaterial({
 			map: loader.load('https://i.imgur.com/ZSklu60.jpg')});
 
@@ -324,45 +381,45 @@
 
 		var bodyMaterial = new THREE.MultiMaterial(bodyTexture);
 		//var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(0.76/4, 1.02/4, 0.51/4),bodyMaterial);
-		var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(48, 64, 32),bodyMaterial);
+		var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(48/200, 64/200, 32/200),bodyMaterial);
 		//headMesh.position.y = 0.46/4;
-		headMesh.position.y = 32;
+		headMesh.position.y = 32/200;
 		head = new THREE.Object3D();
 		head.add(headMesh)
 		//head.position.y = 0.51/4;
-		head.position.y = 30;
+		head.position.y = 30/200;
 		bodyMesh.add(head);
 
 		//leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/4, 0.13/4, 0.25/4, 32), skin);
-		leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 16, 32), skin);
+		leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(8/200, 8/200, 16/200, 32), skin);
 		//var leftArm = new THREE.Mesh(new THREE.CubeGeometry(0.25/4, 0.25/4, 1.02/4),skin);
-		var leftArm = new THREE.Mesh(new THREE.CubeGeometry(16, 16, 64),skin);
+		var leftArm = new THREE.Mesh(new THREE.CubeGeometry(16/200, 16/200, 64/200),skin);
 		//leftArm.position.z = 0.51/4;
-		leftArm.position.z = 32;
+		leftArm.position.z = 32/200;
 		
 		/////////////////////////////let ball keep on hands/////////////////////////////
 		target = new THREE.Object3D();
-		target.position.copy(leftArm.position.clone().add(new THREE.Vector3(-19.698,0,35)));
+		target.position.copy(leftArm.position.clone().add(new THREE.Vector3(-19.698/200,0,35/200)));
 		
 		leftjoint.add(target);		
 		leftjoint.add(leftArm);
 		//leftjoint.position.set(0.51/4,0.32/4,0)
-		leftjoint.position.set(32,20,0);
+		leftjoint.position.set(32/200,20/200,0);
 		bodyMesh.add(leftjoint);
 		
 		//rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/4, 0.13/4, 0.25/4, 32), skin);
-		rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 16, 32), skin);
+		rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(8/200, 8/200, 16/200, 32), skin);
 		var rightArm = leftArm.clone();
 		//rightArm.position.z = 0.51/4;
-		rightArm.position.z = 32;
+		rightArm.position.z = 32/200;
 		rightjoint.add(rightArm);
 		//rightjoint.position.set(-0.51/4,0.32/4,0);
-		rightjoint.position.set(-32,20,0);
+		rightjoint.position.set(-32/200,20/200,0);
 		bodyMesh.add(rightjoint);
 		
 		helfBody = new THREE.Object3D();
 		//bodyMesh.position.y = 0.51/4;
-		bodyMesh.position.y = 32;
+		bodyMesh.position.y = 32/200;
 		
 		helfBody.add(bodyMesh);
 
@@ -370,18 +427,18 @@
 		body.add(helfBody);
 		
 		//var leg = new THREE.Mesh(new THREE.CubeGeometry(0.32/4, 0.83/4, 0.51/4),skin);
-		var leg = new THREE.Mesh(new THREE.CubeGeometry(20, 52, 32),skin);
+		var leg = new THREE.Mesh(new THREE.CubeGeometry(20/200, 52/200, 32/200),skin);
 		
 		//leg.position.y = -0.415/3;
-		leg.position.y = -26;
+		leg.position.y = -26/200;
 		//var cy = new THREE.Mesh(new THREE.CylinderGeometry(0.1/4, 0.1/4, 0.02/4, 32), skin);
-		var cy = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 1.2, 32), skin);
+		var cy = new THREE.Mesh(new THREE.CylinderGeometry(6/200, 6/200, 1.2/200, 32), skin);
 		cy.rotation.z = Math.PI/2;
 
 		leftLeg = new THREE.Object3D();
 		leftLeg.add(leg);
 		//leftLeg.position.set(0.19/4,-0.06/4,0);
-		leftLeg.position.set(12,-4,0);
+		leftLeg.position.set(12/200,-4/200,0);
 		body.add(leftLeg);
 
 		leftLeg.add(cy);
@@ -391,55 +448,54 @@
 		rightLeg.add(cy2);
 		rightLeg.add(leg2);
 		//rightLeg.position.set(-0.19/4,-0.06/4,0);
-		rightLeg.position.set(-12,-4,0);
+		rightLeg.position.set(-12/200,-4/200,0);
 
 		body.add(rightLeg);
 		skirt = new THREE.Object3D();
 		//var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(0.76/4,0.38/4,0.01/4),skin);
-		var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(48,24,0.4),skin);
+		var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(48/200,24/200,0.4/200),skin);
 		//skirtMesh.position.y= -0.19/4;
-		skirtMesh.position.y = -12;
+		skirtMesh.position.y = -12/200;
 		skirt.add(skirtMesh);
 		//skirt.position.z = 0.25/4;
-		skirt.position.z = 16;
+		skirt.position.z = 16/200;
 		skirt.rotation.x = -0.1;
 		helfBody.add(skirt);
 		skirt2 = new THREE.Object3D();
 		var skirt2Mesh = skirtMesh.clone();
 		skirt2.add(skirt2Mesh);
 		//skirt2.position.z = -0.25/4;
-		 skirt2.position.z = -16;
+		 skirt2.position.z = -16/200;
 		skirt2.rotation.x = 0.1;
 		helfBody.add(skirt2);
 		skirt3 = new THREE.Object3D();
 		//var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.01/4,0.38/4,0.51/4),skin);
-		var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.4,24,32),skin);
+		var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.4/200,24/200,32/200),skin);
 		//skirt3Mesh.position.y=-0.25/4;
-		skirt3Mesh.position.y = -12;
+		skirt3Mesh.position.y = -12/200;
 		skirt3.add(skirt3Mesh);
 		//skirt3.position.x = 0.38/4;
-		skirt3.position.x = 24;
+		skirt3.position.x = 24/200;
 		skirt3.rotation.z = 0.1;
 		helfBody.add(skirt3);
 		skirt4 = new THREE.Object3D();
 		var skirt4Mesh = skirt3Mesh.clone();
 		skirt4.add(skirt4Mesh);
 		//skirt4.position.x = 0.38/4;
-		skirt4.position.x = -24;
+		skirt4.position.x = -24/200;
 		skirt4.rotation.z = -0.1;
 		helfBody.add(skirt4);
-		markerRoot.add(unitize(body,1));
-		body.position.set(1.31,0.3,-3/6.6);
-		agent = new Agent(new THREE.Vector3(1.31,0.3,-3/6.6), body);
-		
-		body.position.set(1.31,0.3,-3/6.6);
-		
+		agent = new Agent(new THREE.Vector3(1.31,0.3,0.1), body);
+		//markerRoot.add(unitize(body,0.9));
+		markerRoot.add(body);
+		//body.position.set(1.31,0.3,-3/6.6);
+	
 		head.rotation.x = -0.2;
 		body.rotation.y = Math.PI;
 		body.rotation.z = 0;
 		leftjoint.rotation.y = -0.19;
 		rightjoint.rotation.y = 0.19;
-		
+		body.updateMatrixWorld();
 		body.traverse (
 		   function (mesh) {
 			 if (mesh instanceof THREE.Mesh) {
@@ -473,40 +529,35 @@
 		//board.position.set(0.715,2.775/3,-0.6);
 		//smoothedRoot.add(board);
 		//board.position.y = 3.4/3;
-		board.moveTo(0,342.5,0);
-		//board.position.y = 342.5;
+		board.moveTo(0,342.5/200,0);
 		buildBasketballStands.add(board.obj);
 		objects.push(board);
 		//var mesh = new THREE.Mesh(new THREE.CubeGeometry(0.16/3,0.02/3,0.08/3),material);
-		var mesh = new THREE.Mesh(new THREE.CubeGeometry(16,2,8),material);
+		var mesh = new THREE.Mesh(new THREE.CubeGeometry(16/200,2/200,8/200),material);
 		
 		//mesh.position.set(0.715,2.51/3,-0.573);
 		//smoothedRoot.add(mesh);
 		//mesh.position.set(0,3.135/3,0.027);
-		//mesh.position.set(0,317,6.5);
-		mesh.position.set(0,317,6.5);
+		mesh.position.set(0,317/200,6.5/200);
 		buildBasketballStands.add(mesh);
 		
-		var mesh2;
 		//mesh2 = new THREE.Mesh(new THREE.CubeGeometry(0.16/3,0.16/3,0.02/3),material);
-		mesh2 = new THREE.Mesh(new THREE.CubeGeometry(16,16,2),material);
+		var mesh2 = new THREE.Mesh(new THREE.CubeGeometry(16/200,16/200,2/200),material);
 		//mesh2.position.set(0,2.44/3,-0.589);
 		//smoothedRoot.add(mesh2);
 		//mesh2.position.set(0,3.065/3,0.011);
-		mesh2.position.set(0,309,3.5);
+		mesh2.position.set(0,309/200,3.5/200);
 		buildBasketballStands.add(mesh2);
 		
 		//var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.225/3,0.01/3,20,100),material);
 		//var hoop = new THREE.Mesh(new THREE.TorusGeometry(22.5,1,20,100),material);
 		//hoop.rotation.x = Math.PI/2;
-		var hoop = new Hoop();
-		objects.push(hoop);
-		hoop.moveTo(0,317,32.5);
+		var hoop = new Hoop(22.5*0.065*Math.PI/38);
+		objects.push(hoop); 
+		hoop.moveTo(0,317/200,32.5/200);
 		hoop.rotateTo(Math.PI/2);
 		
-		//hoop.position.set(0.715,2.51/3,-0.497);
 		//smoothedRoot.add(hoop);
-		//hoop.position.set(0,3.135/3,0.103);
 		//hoop.position.set(0,317,32.5);
 		buildBasketballStands.add(hoop.obj);
 		
@@ -543,45 +594,49 @@
 		buildBasketballStands.add(net);*/
 
 		//var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.2/3,0.2/3,1.3/3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")}));
-		var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(20,20,130,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")}));
+		var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(20/200,20/200,130/200,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")}));
 		//pillar.position.set(0.715,0,-5.725/3);
 		//smoothedRoot.add(pillar);
 		//pillar.position.set(0,0,-0.568);
 		//pillar.position.set(0,0.65/3,-0.418);
 		//pillar.position.set(0,65,-0.418);
-		pillar.position.set(0,65,-172.5);
+		pillar.position.set(0,65/200,-172.5/200);
 		buildBasketballStands.add(pillar);
 		
 		//var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15/3,0.15/3,2/3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
-		var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(15,15,200,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(15/200,15/200,200/200,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
 		//pillar2.position.set(0.715,1.65/3,-5.725/3);
 		//smoothedRoot.add(pillar2);
 		//pillar2.position.set(0,1.65/3,-0.568);
 		//pillar2.position.set(0,2.3/3,-0.418);
-		pillar2.position.set(0,230,-172.5);
+		pillar2.position.set(0,230/200,-172.5/200);
 		buildBasketballStands.add(pillar2);
 		
-		var pillar3 = new THREE.Mesh(new THREE.CylinderBufferGeometry(15,15,170,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		var pillar3 = new THREE.Mesh(new THREE.CylinderBufferGeometry(15/200,15/200,170/200,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
 		pillar3.rotation.x = Math.PI/2;
 		//pillar3.position.set(0.715,2.65/3,-1);
 		//smoothedRoot.add(pillar3);
 		//pillar3.position.set(0,3.3/3,-0.213);
-		pillar3.position.set(0,330,-87.5);
+		pillar3.position.set(0,330/200,-87.5/200);
 		buildBasketballStands.add(pillar3);
 		
 		//var splice = new THREE.Mesh(new THREE.SphereGeometry(0.15/3, 32, 32,0), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
-		var splice = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 32,0), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		var splice = new THREE.Mesh(new THREE.SphereGeometry(15/200, 32, 32,0), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
 		splice.rotation.y= Math.PI/2;
 		//splice.position.set(0.715,2.65/3,-5.725/3);
 		//smoothedRoot.add(splice);
 		//splice.position.set(0,2.65/3,-0.568);
 		//splice.position.set(0,3.3/3,-0.418);
-		splice.position.set(0,330,-172.5);
+		splice.position.set(0,330/200,-172.5/200);
 		buildBasketballStands.add(splice);
 		
-		markerRoot.add(unitize(buildBasketballStands,1.8));
+		//markerRoot.add(unitize(buildBasketballStands,1.8));
+		markerRoot.add(buildBasketballStands);
 		buildBasketballStands.position.set(1.31,0,-12/6.6);
-		
+		buildBasketballStands.updateMatrixWorld();
+		board.updateWorldPosition(board.obj.getWorldPosition());
+		hoop.updateWorldPosition(hoop.obj.getWorldPosition());
+		//console.log("height: " + hoop.obj.position.y)
 		buildBasketballStands.traverse (
 		   function (mesh) {
 			 if (mesh instanceof THREE.Mesh) {
@@ -591,34 +646,23 @@
 			}
 		  );
 	}
-	
-	function findNbhd(agents) {
-		let i, j, dst;
-		let nAgents = agents.length;
-		for (i = 0; i < nAgents - 1; i++) {
-			for (j = i + 1; j < nAgents; j++) {
-				dst = agents[i].distanceTo(agents[j])
-				if (dst < 20) { // NBHD = 20
-					agents[i].addNbr(agents[j])
-					agents[j].addNbr(agents[i])
-				}
-			}
-		}
-	}
-//需修改
+
+
 	function ballBoardIntersect (ball, board) {
 
 		let point = new THREE.Vector3();
-		point.copy (ball.pos).sub (board.pc);
-		// console.log(ball.pos.z)
-		if(ball.pos.z >objects[1].obj.position.z) {
-			if(ball.pos.x+ball.radius>board.pc.x - 90/200 && ball.pos.x-ball.radius<board.pc.x + 90/200 ) {
-				if(ball.pos.y+ball.radius>board.pc.y - 52.5/200 && ball.pos.y-ball.radius<board.pc.y + 52.5/200){
-					if (point.dot(board.normal) < ball.radius) {  // close enough
+		//console.log(board.pc)
+		point.copy (ball.pos).sub (board.pc).sub(new THREE.Vector3(0,0,5/400));
+		if(ball.pos.z >board.pc.z) {
+			if(ball.pos.x + ball.radius > board.pc.x - 90/200 && ball.pos.x - ball.radius < board.pc.x + 90/200) {
+				//console.log('check1')
+				if(ball.pos.y + ball.radius > board.pc.y - 52.5/200 && ball.pos.y - ball.radius < board.pc.y + 52.5/200){
+					//console.log('check2')
+					//console.log(point.clone().dot(board.normal))
+					if (point.dot(board.normal) < ball.radius ) {  // close enough
 						console.log('board hit')
 						let vn;  // normal velocity component
-
-						if ((vn = ball.vel.dot (board.normal)) < -3.0) {  // run towards plane
+						if ((vn = ball.vel.dot (board.normal)) < -1) {  // run towards plane
 							//console.log ('vn: '+vn)
 							let resCoeff = 0.9;
 							ball.vel.sub (ball.vel.clone().projectOnVector 	(board.normal).multiplyScalar (1+resCoeff))
@@ -638,8 +682,8 @@
 	}
 	
 	function ballHoopIntersect(ball, hoop) {
-		let point = new THREE.Vector3();
-		point.copy (ball.pos);
+		let point = ball.pos.clone();
+		//point.copy (ball.pos);
 		point.y = hoop.hc.y;
 		let projP = point.clone().sub(hoop.hc);//以籃框中心點為原點(轉籃框坐標系)
 		//console.log('lx:' + projP.x+' ly: ' + projP.y+' lz: '+ projP.z)
@@ -649,11 +693,11 @@
 		}
 		//console.log('a: '+angle);
 		//求出距離籃球最近的籃框框架中心點
-		doughnutCP = new THREE.Vector3(22.5*Math.cos(angle),0,22.5*Math.sin(angle)).add(hoop.hc);
+		doughnutCP = new THREE.Vector3(hoop.radius*Math.cos(angle),0,hoop.radius*Math.sin(angle)).add(hoop.hc);
 		//console.log('x: '+doughnutCP.x + ' y: ' + doughnutCP.y + ' z: ' + doughnutCP.z)
+		//cpball.position.copy(doughnutCP)
 		let distance = ball.pos.distanceTo(doughnutCP);
-		//console.log('distance:'+ distance)
-		if(distance < ball.radius+0.5) {
+		if(distance < ball.radius+0.5/100) {
 			console.log('hoop hit')
 			let n = ball.pos.clone().sub(doughnutCP).normalize();
 
@@ -661,11 +705,38 @@
 			ball.vel.sub (n.clone().multiplyScalar (v.dot(n)*2*55.845/(ball.mass+55.845) ))
 
 			let vv = doughnutCP.clone().sub(ball.pos);
-			let overlap = (0.5+ball.radius) - vv.length();
+			let overlap = (hoop.radius+ball.radius) - vv.length();
 			vv.normalize();
 			ball.pos.add ( vv.clone().multiplyScalar  (-overlap/2));
 		}
 	}
+	
+	function makeLine(init,dest) {
+		let geometry = new THREE.Geometry();
+		geometry.vertices.push (new THREE.Vector3(init.x,init.y,init.z)); 
+		geometry.vertices.push (new THREE.Vector3(dest.x,dest.y,dest.z));
+		geometry.computeLineDistances();
+		let mat = new THREE.LineDashedMaterial ({color:0xffff00, dashSize: 3, gapSize: 3})
+		return new THREE.Line(geometry, mat);
+	}
+	
+	function makeLine2(d) {
+		let dt = 0.002;
+		let geometry = new THREE.Geometry();
+		let check = 0;
+		for(pp=0; ball.pos.y >=  ball.radius;pp++) {
+			geometry.vertices.push (new THREE.Vector3(ball.pos.x,ball.pos.y,ball.pos.z)); 
+			ball.vel.add (ball.force.clone().multiplyScalar(dt))
+			ball.pos.add (ball.vel.clone().multiplyScalar(dt))
+		}
+		//console.log(pp)
+		ball.vel.copy(v0)
+		ball.pos.copy(initbp)
+		geometry.computeLineDistances();
+		let mat = new THREE.LineDashedMaterial ({color:0xffff00, dashSize: 3, gapSize: 3})
+		return new THREE.Line(geometry, mat);
+	}
+	
 	function init() {
 		//////////////////////////////////////////////////////////////////////////////////
 		//		Init
@@ -690,38 +761,65 @@
 		renderer.domElement.style.left = '0px'
 		document.body.appendChild( renderer.domElement );
 		
+		
+		// width/height ratio
+		//whRatio = window.innerWidth/window.innerHeight;
+		whRatio = window.innerHeight/window.innerWidth;
 		// for multi-pass rendering
 		renderer.autoClear = false;
 		
-		
-		// array of functions for the rendering loop
 		// init scene and camera
 		scene	= new THREE.Scene();
-		
-		// eye-coordinate bounds
-		halfH = 10;
-		halfW = halfH * whRatio;
-		sceneHUD  = new THREE.Scene();
-		//cameraHUD = new THREE.OrthographicCamera (-halfW,halfW, halfH,-halfH, -10,10);
-		cameraHUD = new THREE.OrthographicCamera (-10,10,10,-10, -10,10);
-		
-		var buttonSize = halfH/5;
-		button = new THREE.Mesh (new THREE.PlaneGeometry(buttonSize, buttonSize), new THREE.MeshBasicMaterial({color:"yellow", transparent:true, opacity:0.8}));	
-		button1 = new Button (buttonSize ,halfH/1.5, -halfH/1.5);
-		button.position.set (button1.centerX, button1.centerY, 0);
-		sceneHUD.add (button);
-		
-		var ambient = new THREE.AmbientLight( 0x666666 );
-		scene.add( ambient );		
-		
-		//////////////////////////////////////////////////////////////////////////////////
-		//		Initialize a basic camera
-		//////////////////////////////////////////////////////////////////////////////////
-
 		// Create a camera
 		camera = new THREE.Camera();
 		scene.add(camera);
-
+			
+		//for HUD scene
+		sceneHUD  = new THREE.Scene();
+		
+		// eye-coordinate bounds
+		//halfH = 10;
+		halfH = 10;
+		//halfW = halfH * whRatio;
+		halfW = halfH * whRatio*4.4;//PC chrome asus手機  模擬器
+		//cameraHUD = new THREE.OrthographicCamera (-10,10, 10,-10, -10,10);
+		//cameraHUD = new THREE.OrthographicCamera (-halfW, halfW, halfH, -halfH, -10,10);
+		//cameraHUD = new THREE.OrthographicCamera (-halfW*0.9,halfW*0.9, halfH*0.85,-halfH*0.85, -10,10);//HTC手機
+		cameraHUD = new THREE.OrthographicCamera (-halfW,halfW, halfH*1.8,-halfH*1.8, -10,10);
+		
+		var buttonSize = halfH/2;
+		//console.log("buttonSize: " + buttonSize)
+		//console.log("halfW: " +halfW + ", halfH: " +halfH*1.8);
+		button = new THREE.Mesh (new THREE.PlaneGeometry(buttonSize, buttonSize), new THREE.MeshBasicMaterial({color:"yellow", transparent:true, opacity:0.8}));	
+		button1 = new Button (buttonSize ,halfW*0.88,halfH*1.8*0.55 );//halfW*0.65, -halfH/1.8
+		//button1 = new Button (buttonSize ,halfW*0.88/23,halfH*1.8*0.55/18 );//halfW*0.65, -halfH/1.8
+		//console.log("cx: " + halfW*0.88/23 + "cy: " + halfH*1.8*0.55/18)
+		//console.log('x: ' + button1.centerX + 'Y: ' + button1.centerY)
+		button.position.set (button1.centerX, -button1.centerY, 0);
+		sceneHUD.add (button);
+		
+		//蓄力條
+		var base = new  THREE.Mesh(new THREE.PlaneGeometry(halfW+0.2,halfH*1.8/10),new THREE.MeshNormalMaterial({side:THREE.DoubleSide}));
+		base.position.set(-halfW/2+0.1,-halfH*1.8/1.6,0)
+		sceneHUD.add(base);
+		
+		chargeUp = new  THREE.Mesh(new THREE.PlaneGeometry(halfW+0.1,halfH*1.8/10-0.5),new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));
+		chargeUp.position.set(-1.55*halfW,-halfH*1.8/1.6,0)
+		//chargeUp.position.set(-halfW/2+0.1,-halfH*1.8/1.6,0)
+		sceneHUD.add(chargeUp);
+		
+		var standard = new  THREE.Mesh(new THREE.PlaneGeometry((halfW+0.2)/20,halfH*1.8/10),new THREE.MeshBasicMaterial({
+			color:"red",
+			side:THREE.DoubleSide,
+			transparent: true,
+			opacity:0.8
+		}));
+		standard.position.set(-halfW/2+0.1,-halfH*1.8/1.6,0)
+		//console.log("標準: " +(standard.position.x+3*halfW/2)/halfW)
+		sceneHUD.add(standard);
+		
+		var ambient = new THREE.AmbientLight( 0x666666 );
+		scene.add( ambient );		
 		////////////////////////////////////////////////////////////////////////////////
 		//          handle arToolkitSource
 		////////////////////////////////////////////////////////////////////////////////
@@ -781,32 +879,66 @@
 		scene.add(markerRoot)
 		
 		//build danboard
-		buildDanboard();
-		buildBasketballStands();		
+		buildDanboard();	
+		
+		initbp = new THREE.Vector3();
 		
 		//var ball = new THREE.Mesh(new THREE.SphereGeometry((0.45*2/3)/Math.PI*0.8, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
-		ball = new Ball(10,38/Math.PI,0.65);
+		ball = new Ball(10,0.05,0.65);
 		markerRoot.add(ball.obj);
 		objects.push(ball);
-		ball.rotateTo(Math.PI/6);
 		
-		console.log(body.getWorldPosition());
+		buildBasketballStands();	
+		
+		ball.rotateTo(Math.PI/6);	
+		//console.log(body.getWorldPosition());
 		ball.moveTo(target.getWorldPosition());
+		initbp.copy(ball.pos);
+		//console.log(target.getWorldPosition())
+		//console.log(body.position)		
+		//ball.obj.position.set(1.31,1.2,-1.045);
 		
-		//ball.position.set(1.31,1.2,-1.045);
-		
-		/*v0 = new THREE.Vector3();
-		var p = objects[2].obj.position.clone();
+		agent.update(0.02)
+		v0 = new THREE.Vector3();
+		var p = objects[2].hc.clone();
 		p.y = ball.pos.y;
 		var d = ball.pos.distanceTo(p);
-		console.log(d);
-		console.log(Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(317-p.y+10)))));
-		// var y =  Math.sqrt(20*d*d/(Math.sqrt(3)*d-(317-p.y+10)))*Math.sin(Math.PI/3);
-		var y = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(317-p.y+10))))*Math.sin(Math.PI/3);
-		// var z = Math.sqrt(20*d*d/(Math.sqrt(3)*d-(317-p.y+10)))*Math.cos(Math.PI/3);
-		var z = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(317-p.y+10))))*Math.cos(Math.PI/3);
-		ball.vel.set(0,y,z);
-		if(ball.pos.z > objects[2].obj.position.z) ball.vel.z *=-1;
+		//console.log(d)
+		//var y = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(objects[2].hc.y-p.y+10/200))))*Math.sin(theta);
+		//var z = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(objects[2].hc.y-p.y+10/200))))*Math.cos(theta);
+		//ball.vel.set(p.clone().sub(ball.pos).x,y,z);
+		let initv = p.clone().sub(ball.pos).normalize()
+		ball.vel.set(initv.x,initv.y,initv.z);	
+		//console.log(ball.vel)
+		/*let geometry2 = new THREE.Geometry();
+		geometry2.vertices.push (new  THREE.Vector3()); 
+		geometry2.vertices.push (ball.vel);
+		geometry2.computeLineDistances();
+		let mat2 = new THREE.LineDashedMaterial ({color:0x00ff00, dashSize: 3, gapSize: 3})
+		let test2 =  new THREE.Line(geometry2, mat2);
+		markerRoot.add(test2)
+		
+		let geometry = new THREE.Geometry();
+		geometry.vertices.push (new  THREE.Vector3()); 
+		geometry.vertices.push (ball.vel.clone().cross(new THREE.Vector3(0,1,0)));
+		geometry.computeLineDistances();
+		let mat = new THREE.LineDashedMaterial ({color:0xffff00, dashSize: 3, gapSize: 3})
+		let test =  new THREE.Line(geometry, mat);
+		markerRoot.add(test)*/
+		
+		ball.vel.applyAxisAngle (ball.vel.clone().cross(new THREE.Vector3(0,1,0)),theta);
+		//console.log(ball.pos)
+		//console.log("v.x: " + ball.vel.x + ",v.y: " + ball.vel.y + ",v.z: " + ball.vel.z)
+		//console.log(objects[2].obj.getWorldPosition())
+		
+		/*var test = new THREE.Mesh(new THREE.CubeGeometry(0.1,0.1,0.1),new THREE.MeshNormalMaterial());
+		test.position.copy(objects[2].obj.getWorldPosition());
+		markerRoot.add(test)*/
+		/*if(ball.pos.z > objects[2].obj.getWorldPosition().z){
+			ball.vel.z *= -1;
+			console.log('check')
+		}*/
+		ball.vel.setLength(Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(objects[2].hc.y-p.y+10/200)))));
 		v0.copy(ball.vel);
 		//let mv = ball.vel.clone().setLength(1.0);
 		//let ns = new THREE.Vector3(0,0,-1);
@@ -818,16 +950,9 @@
 		//console.log(ball.obj.position);
 		//console.log(body.position);*/
 		
-		puck = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 20), new THREE.MeshBasicMaterial({
-			color: 'white',
-			transparent: true,
-			opacity: 0.5
-		}));
-		markerRoot.add( puck );
-		//puck.material.visible = true;
-		
-		raycaster = new THREE.Raycaster();
-		pickables = [];
+		//cpball= new THREE.Mesh(new THREE.SphereGeometry(2.5*0.065*Math.PI/38,64,64,0),new THREE.MeshBasicMaterial());
+		//markerRoot.add(cpball);
+		//raycaster = new THREE.Raycaster();
 		
 		// add a transparent ground-plane shadow-receiver
 		var material = new THREE.ShadowMaterial();
@@ -842,12 +967,7 @@
 		//floor.position.set(8.65/6.6,0,-6.9/6.6);
 		floor.position.set(1.31,0,-1.045);
 		floor.rotation.x = -Math.PI/2;
-		pickables.push(floor);
 		markerRoot.add( floor );
-		var cube = new THREE.Mesh(new THREE.CubeGeometry(0.5,0.5,0.5),new THREE.MeshNormalMaterial());
-		cube.position.set(0,0.4,-0.7);
-		pickables.push(cube);
-		markerRoot.add(cube);
 		
 		var directionalLight = new THREE.DirectionalLight( 'white' );
 		directionalLight.position.set( 2, 20, -5 );
@@ -862,16 +982,26 @@
 		directionalLight.target.position.set(2,0,0);
 		scene.add( directionalLight );
 		scene.add( directionalLight.target );
+		
+		puck = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 20), new THREE.MeshBasicMaterial({
+			color: 'white',
+			transparent: true,
+			opacity: 0.5
+		}));
+		markerRoot.add(puck);
+		puck.material.visible = false;
+		
+		
 		//////////////////////////////////////////////////////////////////////////////////
 		//		render the whole thing on the page
 		//////////////////////////////////////////////////////////////////////////////////
 		stats = new Stats();
 		document.body.appendChild( stats.dom );
 		
-		//document.addEventListener('touchdown', onTouchDown, false);
-		//document.addEventListener('touchup', onTouchUp, false);
-		window.addEventListener('mousedown', onDocumentMouseDown, false);
-		window.addEventListener ('mouseup', onMouseUp, false);
+		document.addEventListener('touchstart', onTouchDown, false);
+		document.addEventListener('touchend', onTouchUp, false);
+		//window.addEventListener('mousedown', onDocumentMouseDown, false);
+		//window.addEventListener ('mouseup', onMouseUp, false);
 	}
 	
 	function unitize (object, targetSize) {
@@ -903,107 +1033,79 @@
 		}	
 		whRatio = window.innerWidth/window.innerHeight;
 		halfW = halfH * whRatio;
-		//cameraHUD.left = -halfW;
-		//cameraHUD.right = halfW;
+		cameraHUD.left = -halfW;
+		cameraHUD.right = halfW;
+		cameraHUD.autoUpdate = false;
 		//$('#ratio').text ('W/H ratio: ' + whRatio.toFixed(2))
+		$('#ratio').text ('resize: width: ' + window.innerWidth + ' height: ' + window.innerHeight)
 	}
 	
 	function pickCompute (ndcX, ndcY) {
-		
-		raycaster.ray.origin.set (0,0,0)
-		raycaster.ray.direction.set( new THREE.Vector3(ndcX, ndcY, 0.5) ).unproject( camera ).sub( raycaster.ray.origin ).normalize();
-		
-		// find intersections
-		///raycaster.setFromCamera(mouse, camera);	
-		
-		
-		var intersects = raycaster.intersectObjects(pickables);
-		//console.log(body.position.y);
-		//console.log(ball.pos.y);
-		console.log("intersects.length: " + intersects.length);
-		//console.log(pickCompute (mouse.x, mouse.y));
-		
-		
+				
 		// use 2D algorithm 	
-		let dist = button1.dInfTo ([halfW * ndcX, halfH * ndcY]);
-		let check;
-		//$('#ratio').text ('Mouse-to-Button: ' + dist.toFixed(2))
-
-		if (dist < button1.size/2) {
+		//let dist = button1.dInfTo ([halfW * ndcX, halfH * ndcY*1.8]);
+		let dist = button1.dInfTo ([ndcX, halfH * ndcY*1.8]);
+		//$('#touch').text ('Mouse-to-Button: ' + dist.toFixed(2) + ' x: ' + ndcX+ ' y: ' + ndcY);
+		
+		//console.log(dist);
+		if(ndcX > 0.768 && ndcX < 0.99 && ndcY > -0.99 && ndcY < -0.57&& !update && !agent.stop && !agent.stand) {
 			console.log ('picked')
 			ready = !ready;
-			check = true;
+			doChargeUp = !doChargeUp;
+			button.material.color.set(0xff891c);
 		} else {
-			console.log ('no hit')
-			check =  false;
+			console.log ('no hit');
 		}
-		
-		if (intersects.length > 0 && !check) {
-			let pt =intersects[0].point.clone();
-			intersects[0].point.y = body.position.y;
-			/*puck.position.copy(intersects[0].point);
-			agents.forEach (function(agent) {
-			agent.setTarget(intersects[0].point)
-			})*/
-			let p  = objects[2].obj.getWorldPosition();
-			p.y = body.position.y;
-			let d = p.distanceTo(intersects[0].point);
-			//if(d >710) {
-				if(!puck.material.visible) puck.material.visible = !puck.material.visible;
-
-				puck.position.copy(pt);
-				
-				agent.setTarget(intersects[0].point);
-				agent.rUpdate();
-				let p0 = new THREE.Vector3(0,0,-1);
-				let bangle = p0.angleTo(intersects[0].point.clone().sub(body.position));
-				let p1 = ball.vel.clone();
-				let vangle = p1.angleTo(intersects[0].point.clone().sub(body.position));
-				p1.y = 0;
-				if(body.position.x > intersects[0].point.x)
-					body.rotation.y = Math.PI + bangle;
-				else
-					body.rotation.y = Math.PI - bangle;
-				if(ball.vel.x > 0) {
-					ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),vangle);
-				} else {
-					ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),-vangle);
-				}
-
-			//}
-
-			//else console.log("距離過近");
-
-		}
-		
+		/*if (dist <  button1.size/2) {
+			console.log ('picked')
+			ready = !ready;
+			doChargeUp = !doChargeUp;
+			button.material.color.set(0xff891c);
+		} else {
+			console.log ('no hit');
+		}*/
 	}
 	
 	function onDocumentMouseDown(event) {
-
+		
 		event.preventDefault();
 		let ndcX = (event.clientX / window.innerWidth) * 2 - 1;
 		let ndcY = -(event.clientY / window.innerHeight) * 2 + 1;
+		//let ndcX = (event.clientX / halfW) * 2 - 1;
+		//let ndcY = -(event.clientY / halfH) * 2 + 1;
 		
+		//raycaster.setFromCamera(mouse, camera);
 		pickCompute (ndcX, ndcY)
-		
+		/*if (ndcX < halfW*0.65 - halfH/12 || ndcX > halfW*0.65 + halfH/12) {
+			console.log ('picked')
+			ready = !ready;
+			doChargeUp = !doChargeUp;
+		} else {
+			console.log ('no hit')
+		}	*/	
+
 	}
 
 	function onMouseUp() {
 		if(ready){
 			cubeSpin = !cubeSpin;
-			nready = !nready;
+			//doChargeUp = !doChargeUp;
+			/*power = chargeUp.position.x;
+			power = (power+3*halfW/2)/halfW;*/
+			button.material.color.set("yellow");
+			console.log("fuck fuck")
 		}
 	}
 	
-	
 	function onTouchDown (event) {
+		//console.log(event.touches.length)
 		if (event.touches.length == 1) {
 
 			event.preventDefault();
 			let touch = new THREE.Vector2();
 			touch.x = ( event.touches[0].pageX / window.innerWidth ) * 2 - 1;
 			touch.y = - ( event.touches[0].pageY / window.innerHeight ) * 2 + 1;
-
+			//console.log(touch);
 			pickCompute (touch.x, touch.y);		
 		}
 	}
@@ -1011,7 +1113,14 @@
 	function  onTouchUp() {
 		if(ready){
 			cubeSpin = !cubeSpin;
+			doChargeUp = !doChargeUp;
 			nready = !nready;
+			power = chargeUp.position.x;
+			power = (power+1.55*halfW)/halfW;
+			//power=0.56;
+			button.material.color.set("yellow");
+			console.log(power);
+			$('#power').text ('Power: ' + power);
 		}
 	}
 	
@@ -1037,7 +1146,6 @@
 	}
 	
 	function animate() {
-	
 		requestAnimationFrame( animate );
 		renderer.render( scene, camera );
 		renderer.render (sceneHUD, cameraHUD);
@@ -1045,14 +1153,19 @@
 		//simulate( time );
 		stats.update();
 		//render();
-		
-		
+			
 		if( arToolkitSource.ready === false )	return
 
 		arToolkitContext.update( arToolkitSource.domElement )
 		
 		// update scene.visible if the marker is seen
 		scene.visible = camera.visible;
+		
+		if (cubeSpin) {
+			tmp = !tmp;
+			cubeSpin = !cubeSpin;
+			ready = !ready;
+		}
 		
 		if(ready){
 			if(leftjoint.rotation.x<Math.PI*11/36) {
@@ -1061,40 +1174,126 @@
 			}
 			ball.moveTo(target.getWorldPosition());
 		}
-		if (cubeSpin) {
-			tmp = !tmp;
-			cubeSpin = !cubeSpin;
-			ready = !ready;
-		}
 		let p  = objects[2].obj.getWorldPosition();
+		//console.log('hoop.x: '+ p.x + ',hoop.y: ' + p.y + 'hoop.z: ' + p.z)
+		//console.log(ball.pos)
 		p.y = ball.pos.y;
-		let d = body.position.distanceTo(p);
 		
 		if(tmp) {
 			ball.moveTo(target.getWorldPosition());
-			if(leftjoint.rotation.x >0) {
+			if(leftjoint.rotation.x > 0) {
 				leftjoint.rotation.x -= 0.2;
 				rightjoint.rotation.x -= 0.2;
 			} 
 			else {
-
 				let d2 = ball.pos.distanceTo(p);
-				ball.vel.setLength(Math.sqrt(10*d2*d2/(2*Math.cos(theta)*Math.cos(theta)*(d2*Math.tan(theta)-(317-p.y+12)))));
+				ball.vel.setLength(Math.sqrt(10*d2*d2/(2*Math.cos(theta)*Math.cos(theta)*(d2*Math.tan(theta)-(objects[2].hc.y-p.y+10/200)))));
+				
+				/*if(line)
+					markerRoot.remove(line);
+				line = makeLine(ball.pos,p);
+				markerRoot.add(line);
+				
+				if(t)
+					markerRoot.remove(t);
+				t = new THREE.Mesh(new THREE.CubeGeometry(0.01,2,0.01),new THREE.MeshNormalMaterial());
+				t.position.set(p.x,1,p.z);
+				markerRoot.add(t);*/
+				
+				
+				
+				//console.log("v0.x: " + ball.vel.x + ",v0.y: " + ball.vel.y + ",v0.z: " + ball.vel.z)
+				if(power < 0.51) {
+					ball.vel.setLength(ball.vel.length()*power*1.9);
+				}
+				if(power > 0.56) {
+					ball.vel.setLength(ball.vel.length()+ball.vel.length()*power/10);
+				}  
 				v0.copy(ball.vel);
-
+				if(line2)
+				markerRoot.remove(line2);
+				line2 = makeLine2(d2);
+				markerRoot.add(line2);				
+				console.log('d2: ' + d2)	
 				tmp = !tmp;
 				update = !update;
 
 			}
 
+		} 
+		p.y = body.position.y;
+		let d = body.position.distanceTo(p);
+		if(posReset) {
+			let d = 0,pos = new  THREE.Vector3(0,0.3,0);
+			while(d < 1.41 || pos. z <objects[2].obj.getWorldPosition().z||pos.clone().sub(body.position).length()==0) {
+				pos.x = (4.5*Math.random() - 2.25)+1.31;
+				pos.z = (21*Math.random() - 10.5)/6.6-1.045;
+				let p  = objects[2].obj.getWorldPosition();
+				p.y = body.position.y;
+				//console.log(p.y)
+				d = p.distanceTo(pos);
+			}
+			agent.setTarget(pos);
+			if(!puck.material.visible) puck.material.visible = !puck.material.visible;
+			puck.position.copy(pos.clone().sub(new THREE.Vector3(0,0.28,0)));
+			agent.rUpdate();
+			let p0 = new THREE.Vector3(0,0,-1);
+			let bangle = p0.angleTo(pos.clone().sub(body.position));
+			let p1 = ball.vel.clone();
+			p1.y = 0;
+			let vangle = p1.angleTo(pos.clone().sub(body.position));   
+			if(body.position.x > pos.x) {
+				body.rotation.y = Math.PI + bangle;
+			} else {
+				body.rotation.y = Math.PI - bangle;
+			}
+			if(pos.normalize().x>p1.normalize().x)
+				ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),-vangle);
+			else
+				ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),vangle);
+				
+			if(line2)
+				markerRoot.remove(line2);
+			posReset = !posReset;
+		}
+
+		if(doChargeUp) {
+			if(chargeUp.position.x > -halfW/2-0.1) type = 2;
+			if(chargeUp.position.x < -1.55*halfW) type = 1;
+			chargeUp.position.x += type==1 ? halfW/100 : -halfW/100;
+			
+			//console.log(ball.vel)
+			p.y = initbp.y;
+			ball.pos.copy(initbp)
+			//console.log(ball.vel)
+			let d = initbp.distanceTo(p)
+			let v = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(objects[2].hc.y-p.y+10/200))))
+			ball.vel.setLength(v);
+			v0.copy(ball.vel)
+			power = (chargeUp.position.x + 1.55*halfW)/halfW+0.32
+			if(power < 0.51) {
+					console.log(ball.vel)
+					ball.vel.setLength(v*power*1.9+1);
+					console.log(ball.vel)
+					
+				}
+			if(power > 0.56) {
+				ball.vel.setLength(v+v*power/10);
+			}
+			
+			if(line2)
+				markerRoot.remove(line2);
+			line2 = makeLine2(d);
+			markerRoot.add(line2);
+			
+			
 		}
 		if(update) {
-			ball.update(0.2);
+			ball.update(0.02);
 		}
-		
-		ballBoardIntersect(objects[0],objects[1]);
-		//ballHoopIntersect(objects[0], objects[2]);
 		agent.update(0.02);
+		ballBoardIntersect(objects[0],objects[1]);
+		ballHoopIntersect(objects[0], objects[2]);
 	}
 
 	// run the rendering loop
