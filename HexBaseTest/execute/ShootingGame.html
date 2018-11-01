@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!-- three.js library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/94/three.min.js"></script>
+<script src="https://cdn.rawgit.com/j91157j91157/ARPJ/master/three.js/examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+<!-- ar.js -->
+<script src="https://cdn.rawgit.com/j91157j91157/ARPJ/master/three.js/build/ar.js"></script>
+
+<head>
+  <title>Socket.IO chat</title>
+</head>
+<body>
+<script>
+var renderer, scene, camera;
+var sceneHUD, cameraHUD;
+var stats;
+var pickables = [];
+var markerHiro, markerKanji;
+var arToolKitSource, arToolKitContext;
+var socket;
+var isTurn = [false, false];
+var myID, otherID;  // either 0 or 1
+
+var mGrids = [];
+var N = 4;
+const SIZE = 10;
+const SQRT3 = Math.sqrt(3);
+var score = 0,scoreB = 0;
+var gameoverA,gameoverB;
+var baseA = new THREE.Object3D(),baseB = new THREE.Object3D();
+var planeA,planeB;
+var m,mB;
+var j,k,s,t;
+var ball,lacA,lacB;
+var pickplane;
+var collisionA = true,collisionB = true;//for test
+
+var whRatio, halfW, halfH;
+var d, v0, theta,tmpV;
+var loader = new THREE.TextureLoader();
+var target, point, pp,power,prevPower;
+var shell,tmp =true;
+var update = false;
+var line, pLine, chargeUp = false;
+var reset = false;
+var pointHUD,pLine2,range;
+var initBall = false;
+
+var first_row = -N;  // the 'r' of first row
+function first_column(r) {  // the first column at r = 'r'
+  if (r < 0)
+    return -(N + r);
+  else
+    return -N;
+}
+
+class Cube {   // cube coordinate
+
+	constructor(x, y, z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+	toHex() {
+		var q = this.x
+		var r = this.z
+		return new Hex(q, r)
+	}
+	round() {   	// return a new Cube closest to this
+		var rx = Math.round(this.x)
+		var ry = Math.round(this.y)
+		var rz = Math.round(this.z)
+		var x_diff = Math.abs(rx - this.x)
+		var y_diff = Math.abs(ry - this.y)
+		var z_diff = Math.abs(rz - this.z)
+
+		if (x_diff > y_diff && x_diff > z_diff)
+			rx = -ry - rz
+		else if (y_diff > z_diff)
+			ry = -rx - rz
+		else
+			rz = -rx - ry
+			
+		return new Cube(rx, ry, rz)
+	}
+}
+
+class Hex {  // axial coordinate
+
+	constructor(q, r) {
+		this.q = q;
+		this.r = r;
+		this.blood = 1;
+		this.mesh = null;
+		this.picked = false	    
+	}
+	toCube() {
+		var x = this.q
+		var z = this.r  
+		var y = -x - z	// x + y + z = 0
+		return new Cube(x, y, z)
+	}
+	pick() {
+		this.picked = true
+		//console.log ('i am picked:' + this.q + ',' + this.r)
+	}
+	draw(Hx,Hz,H) {
+		let xy = []   // center of hex
+		xy[0] = SIZE * (SQRT3 * this.q + 0.5 * SQRT3 * this.r)
+		xy[1] = - SIZE * (1.5 * this.r)
+
+		// draw a circle at center
+		this.mesh = makeCircle();
+		//this.mesh.rotation.x = -Math.PI/2;
+		if(H === 1){
+			baseA.add(this.mesh)
+			this.mesh.position.set((xy[0]+Hx)/160, 5/160, (xy[1]+Hz)/160)
+		} 
+		if(H === 2){
+			baseB.add(this.mesh)
+			this.mesh.position.set((xy[0]+Hx)/160, 5/160, (xy[1]+Hz)/160)
+		} 
+	}
+	round() {
+		//cube_to_axial(cube_round(axial_to_cube(hex)))
+		return this.toCube().round().toHex()
+	}
+	storage() {
+		var ij = [];
+		ij[0] = this.r - first_row;
+		ij[1] = this.q - first_column(this.r);
+		return ij;
+	}
+	static r2toHex(x, y) {   // modified pixel_to_hex
+	// find the closest hex to (x,y)
+	var q = (SQRT3 / 3 * x - 1 / 3 * (-y)) / SIZE
+	var r = (2 / 3 * (-y)) / SIZE
+	//console.log ('q,r:' + q + ',' + r)
+	return new Hex(q, r).round()
+	}
+}
+
+class Shell { 
+  constructor (mass = 1, radius=38/Math.PI, friction = 0) {
+    this.update = false;
+	this.type = 'shell';
+    this.mass = mass;  // may need to differentiate basketball & bowling ball
+    this.radius = radius;
+    this.friction = friction;  // for contact	
+    // for dynamics calculation
+    this.pos = new THREE.Vector3();
+    this.vel = new THREE.Vector3();
+    this.initV =  new THREE.Vector3();
+    this.force = new THREE.Vector3();
+    this.count = 0;
+
+    this.obj = new THREE.Object3D();
+    loader.setCrossOrigin ('');
+    
+	//let mesh = new THREE.Mesh (new THREE.SphereGeometry(radius, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}))
+	let mesh = new THREE.Mesh (new THREE.SphereGeometry(radius, 32, 32), new THREE.MeshNormalMaterial());
+    this.obj.add (mesh);
+  }
+
+  update(dt) {
+
+    // after GLOBAL collision & contact
+    this.vel.add (this.force.clone().multiplyScalar(dt))
+    this.pos.add (this.vel.clone().multiplyScalar(dt)) 
+    this.obj.position.copy (this.pos);
+    if(this.obj.position.y <this.radius) {
+      bump();
+      this.pos.copy(baseB.position.clone().add(new THREE.Vector3(0,shell.radius/2+5,0)));
+      this.vel.copy(shell.initV);
+      this.obj.position.copy(this.pos)
+      update = !update;
+      //console.log(update)
+      
+    }  
+  }
+
+  // useless API
+  moveTo(thePos) {
+    this.pos.copy (thePos);
+    this.obj.position.copy (this.pos);
+  }
+
+  rotateTo (theta) {  // abs CCW angle
+    this.obj.rotation.z = theta;
+    //this.normal.applyEuler (new THREE.Euler (0,0,theta))
+  }
+}
+
+/////////////////////////////////////////////////////////
+
+function drawAllA (x,z,H){
+	for (let i = 0; i < m.length; i++) {
+		for (let j = 0; j < m[i].length; j++) {
+			m[i][j].draw(x,z,H)
+		}
+	}
+}
+
+function drawAllB (x,z,H) {
+	for (let i = 0; i < mB.length; i++) {
+		for (let j = 0; j < mB[i].length; j++) {
+			mB[i][j].draw(x,z,H)
+		}
+	}
+}
+
+function initHexGrid(x,z,H) {
+	m = [
+		[new Hex(0,-4), new Hex(1,-4), new Hex(2,-4), new Hex(3,-4), new Hex(4,-4)],
+		[new Hex(-1,-3), new Hex(0,-3), new Hex(1,-3), new Hex(2,-3), new Hex(3,-3), new Hex(4,-3)],
+		[new Hex(-2,-2), new Hex(-1,-2), new Hex(0,-2), new Hex(1,-2), new Hex(2,-2), new Hex(3,-2), new Hex(4,-2)],
+		[new Hex(-3,-1), new Hex(-2,-1), new Hex(-1,-1), new Hex(0,-1), new Hex(1,-1), new Hex(2,-1), new Hex(3,-1), new Hex(4,-1)],
+		[new Hex(-4,0), new Hex(-3,0), new Hex(-2,0), new Hex(-1,0), new Hex(0,0), new Hex(1,0), new Hex(2,0), new Hex(3,0), new Hex(4,0)],
+		[new Hex(-4,1), new Hex(-3,1), new Hex(-2,1), new Hex(-1,1), new Hex(0,1), new Hex(1,1), new Hex(2,1), new Hex(3,1)],
+		[new Hex(-4,2), new Hex(-3,2), new Hex(-2,2), new Hex(-1,2), new Hex(0,2), new Hex(1,2), new Hex(2,2)],
+		[new Hex(-4,3), new Hex(-3,3), new Hex(-2,3), new Hex(-1,3), new Hex(0,3), new Hex(1,3)],
+		[new Hex(-4,4), new Hex(-3,4), new Hex(-2,4), new Hex(-1,4), new Hex(0,4)]
+	];  
+	drawAllA(x,z,H)
+}
+
+function initHexGridB(x,z,H) {
+	mB = [
+		[new Hex(0,-4), new Hex(1,-4), new Hex(2,-4), new Hex(3,-4), new Hex(4,-4)],
+		[new Hex(-1,-3), new Hex(0,-3), new Hex(1,-3), new Hex(2,-3), new Hex(3,-3), new Hex(4,-3)],
+		[new Hex(-2,-2), new Hex(-1,-2), new Hex(0,-2), new Hex(1,-2), new Hex(2,-2), new Hex(3,-2), new Hex(4,-2)],
+		[new Hex(-3,-1), new Hex(-2,-1), new Hex(-1,-1), new Hex(0,-1), new Hex(1,-1), new Hex(2,-1), new Hex(3,-1), new Hex(4,-1)],
+		[new Hex(-4,0), new Hex(-3,0), new Hex(-2,0), new Hex(-1,0), new Hex(0,0), new Hex(1,0), new Hex(2,0), new Hex(3,0), new Hex(4,0)],
+		[new Hex(-4,1), new Hex(-3,1), new Hex(-2,1), new Hex(-1,1), new Hex(0,1), new Hex(1,1), new Hex(2,1), new Hex(3,1)],
+		[new Hex(-4,2), new Hex(-3,2), new Hex(-2,2), new Hex(-1,2), new Hex(0,2), new Hex(1,2), new Hex(2,2)],
+		[new Hex(-4,3), new Hex(-3,3), new Hex(-2,3), new Hex(-1,3), new Hex(0,3), new Hex(1,3)],
+		[new Hex(-4,4), new Hex(-3,4), new Hex(-2,4), new Hex(-1,4), new Hex(0,4)]
+	];
+	drawAllB(x,z,H)
+}
+
+function initBallVector(){
+	let p1 = markerHiro.position.clone();
+	let p2 = markerKanji.position.clone();
+	let localKanji = markerHiro.worldToLocal(markerKanji.position.clone());
+	//d = p1.distanceTo(p2);
+	d = localKanji.length();
+	console.log(d);
+	//d = markerHiro.position.distanceTo(markerKanji.position);
+	v0 = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta))));
+	//console.log(v0);
+	
+	//let vn = markerKanji.position.clone().sub(markerHiro.position)
+	let vn = markerHiro.worldToLocal(markerKanji.position.clone());
+	vn.y= 0;
+	shell.vel.copy(vn.normalize());
+	
+	let axisOfRotation = shell.vel.clone().cross(new THREE.Vector3(0,1,0));
+	shell.vel.setLength(v0).applyAxisAngle (axisOfRotation, theta)
+	//console.log(shell.vel)
+	shell.force.set(0,-10,0);
+	g = 10; 
+	tmpV = shell.vel.clone()
+	shell.initV.copy(shell.vel.clone());
+	if(line) {
+		markerHiro.remove(line);
+	}
+	line = makeLine();
+	markerHiro.add(line);
+	
+	
+	
+}
+
+function makeLine() {
+  let dt = 0.002;
+  let geometry = new THREE.Geometry();
+  let check = false
+  for(pp=0; shell.pos.y >  shell.radius||!check;pp++) {
+    geometry.vertices.push (new THREE.Vector3(shell.pos.x,shell.pos.y,shell.pos.z)); 
+    shell.vel.add (shell.force.clone().multiplyScalar(dt))
+    shell.pos.add (shell.vel.clone().multiplyScalar(dt))
+    check = true;
+  }
+  //console.log(pp)
+  shell.vel.copy(tmpV)
+  shell.pos.copy(shell.obj.position)
+  //geometry.computeLineDistances();
+  //let mat = new THREE.LineDashedMaterial ({color:0xffff00, dashSize: 4, gapSize: 4})
+  let mat = new THREE.LineDashedMaterial ({color:0xf9803e})
+	return new THREE.Line(geometry, mat);
+}
+
+function makeLine2(pos,pos2) {
+	let geometry = new THREE.Geometry();
+   geometry.vertices.push (pos);
+   geometry.vertices.push (pos2);
+   geometry.computeLineDistances();
+   let mat = new THREE.LineDashedMaterial ({color:0xffffff, dashSize: 2, gapSize: 2})
+	return new THREE.Line(geometry, mat);
+}
+
+
+//for socket.io....
+
+/*$(function () {
+	socket = io();
+	socket.on ('id_set', function(msg) {
+		console.log ('i am ' + msg);
+		// console.log (typeof (msg)) // Number
+		myID = msg;
+		meshes[myID].material.visible = true
+		//otherID = (myID + 1)%2
+		// id = 0, myID = 0
+		// id = 1, myID = 1, otherID = 0
+		// quick fix...
+		if (myID === 1) {
+			otherID = 0
+			meshes[otherID].material.visible = true
+		}
+		if (myID === 0) {
+			$('#hud').text ('I am client 0')
+		} else {
+			$('#hud').text ('I am client 1')
+		}
+	});
+	socket.on ('update_status', function (status) {
+		console.log (status)
+		for (let i = 0; i < status.length; i++) {
+			isTurn[status[i].id] = status[i].turn
+		}
+		console.log ('isTurn: '  + isTurn)
+	});
+	// is this necessary?!
+	socket.on ('new_id', function(msg) {
+		console.log ('new kid in town: ' + msg);
+		otherID = msg;
+		meshes[otherID].material.visible = true
+	})
+});*/
+init();
+animate();
+
+function init() {
+	// https://stackoverflow.com/questions/9038625/detect-if-device-is-ios?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+	//let _iOSDevice = !!navigator.platform && /iPad|iPhone|iPod/.test(navigator.platform);
+	let _iOSDevice = !!navigator.platform.match(/iPhone|iPod|iPad/);
+	console.log ('iOS: ' + _iOSDevice);
+	//let mycanvas = $('#mycanvas')   // this does NOT work ...
+	renderer	= new THREE.WebGLRenderer({
+		//antialias	: true,
+		alpha: true
+	});
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setClearColor(new THREE.Color('lightgrey'), 0);
+	renderer.domElement.style.position = 'absolute';
+	renderer.domElement.style.top = '0px';
+	renderer.domElement.style.left = '0px';
+	renderer.shadowMap.enabled = true;	//very important!!
+	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+	document.body.appendChild( renderer.domElement );
+	// for multi-pass rendering
+	renderer.autoClear = false;
+	//renderer shadow
+	renderer.shadowMap.enabled = true;
+	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+	pickables = [];
+	
+	// width/height ratio
+	whRatio = window.innerWidth/window.innerHeight;  
+	
+	scene = new THREE.Scene();
+	camera = new THREE.Camera();
+	scene.add(camera);
+	
+	halfH =10;
+	halfW = halfH * whRatio;
+	//sceneHUD  = new THREE.Scene();
+	//cameraHUD = new THREE.OrthographicCamera (-halfW,halfW, halfH,-halfH, -10,10);
+  
+	sceneHUD = new THREE.Scene();
+	cameraHUD = new THREE.OrthographicCamera (-10,10,10,-10, -10,10);
+	////////////////////////////////////////////////////////////////////////////////
+	//          handle arToolkitSource
+	////////////////////////////////////////////////////////////////////////////////
+	arToolkitSource = new THREEx.ArToolkitSource({
+		sourceType : 'webcam',
+	})
+	arToolkitSource.init(function onReady(){
+		onResize()
+	})
+	// handle resize
+	window.addEventListener('resize', function(){
+		onResize()
+	})
+	function onResize(){
+		arToolkitSource.onResize()
+		arToolkitSource.copySizeTo(renderer.domElement)
+		if( arToolkitContext.arController !== null ){
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)
+		}
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	//          initialize arToolkitContext
+	////////////////////////////////////////////////////////////////////////////////
+	arToolkitContext = new THREEx.ArToolkitContext({
+		cameraParametersUrl: 'https://raw.githubusercontent.com/j91157j91157/ARPJ/master/data/data/camera_para.dat',
+		detectionMode: 'mono',
+		maxDetectionRate: 30,
+		canvasWidth: 80*3,
+		canvasHeight: 60*3,
+	})
+	// initialize it
+	arToolkitContext.init(function onCompleted(){
+		// copy projection matrix to camera
+		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+	})
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//Make world !!
+	markerHiro = addMarkerHiro();
+	markerKanji = addMarkerKanji();
+	
+	scene.add (markerHiro,markerKanji);
+	
+	shell =  new Shell(10,7/160,0.65); 
+	//shell.moveTo(baseB.position.clone().add(new THREE.Vector3(0,shell.radius/2+5,0)))
+	shell.moveTo(new THREE.Vector3(0,shell.radius/2+5/160,0));
+	
+	theta = Math.PI/4; // 45 deg 
+	
+	markerHiro.add(shell.obj)
+	stats = new Stats();
+	document.body.appendChild(stats.dom);
+	//iOS touch介面?
+	if (_iOSDevice)
+		window.addEventListener('touchstart', onTouchStart, false)
+	else
+		window.addEventListener ('mousedown', onMouseDown, false);
+		
+		
+	collisionResponseA();
+	collisionResponseB();
+	
+	point = new THREE.Mesh(new THREE.CylinderGeometry(10/160, 10/160, 0.5/160, 20), new THREE.MeshBasicMaterial({
+		color: 'green',
+		transparent: true,
+		opacity: 0.8
+	}));
+	markerHiro.add(point);
+}
+
+function animate() {
+	requestAnimationFrame(animate);
+	if( arToolkitSource.ready === false )	return
+	arToolkitContext.update( arToolkitSource.domElement )
+	
+	if(markerHiro.visible && markerKanji.visible) {
+		markerHiro.updateMatrix();
+		markerHiro.updateMatrixWorld();
+		markerKanji.updateMatrix();
+		markerKanji.updateMatrixWorld();
+		if(!initBall) {
+			initBallVector();
+			initBall = true;
+			/*console.log('Hiro Position: ')
+			console.log(markerHiro.position);
+			console.log('Kanji Position: ')
+			console.log(markerKanji.position);
+			console.log('Ball Vector(Not Normalize): ');
+			console.log(markerKanji.position.clone().sub(markerHiro.position))*/
+
+		}
+		point.position.copy(line.geometry.vertices[pp-1]);
+		point.position.y = 10/160;
+		
+	} else {
+		initBall = false;
+	}
+	
+	/*if (myID !== undefined) {
+		if (isTurn[myID])
+			meshes[myID].rotation.y += 0.01;
+	}
+	if (otherID !== undefined) {
+		if (isTurn[otherID])
+			meshes[otherID].rotation.y += 0.01;
+	}*/
+	//square.material.visible = markerHiro.visible;
+	/////////////////////////////////
+	//collisionResponseA();
+	 
+	renderer.clear();
+	renderer.render (scene, camera);
+	renderer.render (sceneHUD, cameraHUD);
+	stats.update();
+}
+
+function addMarkerHiro(){  							//Make BaseA World!
+	let markerRoot = new THREE.Group()
+	var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+		type : 'pattern',
+		patternUrl : 'https://raw.githubusercontent.com/j91157j91157/ARPJ/master/data/data/patt.hiro'
+	})
+	//light
+	var light = new THREE.PointLight( 0xffffff , 0.5);
+	light.position.set( 0, 2, 0 );
+	light.castShadow = true;
+	var Amlight = new THREE.AmbientLight( 0x404040 ); // soft white light
+	markerRoot.add(light,Amlight);
+	//base
+	//baseA = new THREE.Object3D();
+	var mesh = makeHex(new THREE.Color(0xfc4e4e));
+	mesh.rotation.x = Math.PI/2;
+	mesh.rotation.z = Math.PI/6;
+	baseA.add(mesh);
+	//baseA.rotation.y -= Math.PI/12;
+	markerRoot.add(baseA);
+	
+	//for location
+	initHexGrid(baseA.localToWorld(new THREE.Vector3(0,0,0)).x,baseA.localToWorld(new THREE.Vector3(0,0,0)).z,1);
+	markerRoot.updateMatrixWorld();
+	return markerRoot;
+}
+
+function addMarkerKanji () {						//Make BaseA World!
+	let markerRootKanji = new THREE.Group();
+	var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRootKanji, {
+		type : 'pattern',
+		patternUrl : 'https://raw.githubusercontent.com/j91157j91157/ARPJ/master/data/data/patt.kanji'
+	})
+	//light
+	var light = new THREE.PointLight( 0xffffff , 0.5);
+	light.position.set( 0, 2, 0 );
+	light.castShadow = true;
+	var Amlight = new THREE.AmbientLight( 0x404040 ); // soft white light
+	markerRootKanji.add(light,Amlight);
+	//base
+	//baseB = new THREE.Object3D();
+	var mesh = makeHex(new THREE.Color(0x00ffff));
+	mesh.rotation.x = Math.PI/2;
+	mesh.rotation.z = Math.PI/6;
+	baseB.add(mesh);
+	//baseB.rotation.y += Math.PI/12;
+	markerRootKanji.add(baseB);
+	
+	//for location
+	initHexGridB(baseB.localToWorld(new THREE.Vector3(0,0,0)).x,baseB.localToWorld(new THREE.Vector3(0,0,0)).z,2);
+	markerRootKanji.updateMatrixWorld();
+	return markerRootKanji;
+}
+
+function makeHex(color) { //HexBase
+	var shape = new THREE.Shape();
+	/*shape.moveTo( 0,0 );
+	shape.lineTo( 0, 80/800 );
+	shape.lineTo( 69.28203/800, 120/800 );
+	shape.lineTo( 138.56106/800, 80/800 );
+	shape.lineTo( 138.56106/800, 0 );
+	shape.lineTo( 69.28203/800, -40/800 );
+	shape.lineTo( 0,0 );*/
+	
+	shape.moveTo( 0,0 );
+	shape.lineTo( 0, 0.5 );
+	shape.lineTo( 0.4330126875, 0.75 );
+	shape.lineTo( 0.866006625, 0.5 );
+	shape.lineTo( 0.866006625, 0 );
+	shape.lineTo( 0.4330126875, -0.25 );
+	shape.lineTo( 0,0 );
+
+	var extrudeSettings = {
+		steps: 1,
+		depth: 0.625,
+		bevelEnabled: true,
+		bevelThickness: 0,
+		bevelSize: 0.00625,
+		bevelSegments: 1
+	};
+	var geometry = new THREE.ExtrudeGeometry( shape, extrudeSettings );
+	var material = new THREE.MeshLambertMaterial( { color: color.clone() } );
+	var mesh = new THREE.Mesh( geometry, material ) ;
+	mesh.castShadow = true;
+	mesh.receiveShadow = true;
+	mesh.position.set(-0.25,0,-0.4330126875);
+	return mesh;
+}
+
+function makeCircle () { //圓柱
+	circle = new THREE.Mesh(new THREE.CylinderGeometry( 5/160, 5/160, 10/160, 32 ), new THREE.MeshLambertMaterial({
+		color: new THREE.Color("hsl(0, 100%, 100%)")
+	}));
+	circle.castShadow = true;
+	circle.receiveShadow = true;
+	return circle
+}
+
+function collisionResponseA(){	//baseA碰撞處理
+	//////////////////////for locateA ////////////////////////
+	var ball = new THREE.Vector3(0.5,0,0);//for test 測試用，隨意給
+	
+	let p0 = new THREE.Vector3 (0,0,0);//must be eye's position
+	let mw = new THREE.Matrix4();		
+	p0.applyMatrix4 (mw.getInverse(markerHiro.matrixWorld));//eye's position in markerHiro's world (markerHiro 一開始尚未創建完成時，無法使用，會是錯誤值)
+	//console.log(camera.position)
+	//console.log(p0)
+	
+	let p1 = new THREE.Vector3 (0,0,0);//must be eye's position
+	let mw2 = new THREE.Matrix4();		
+	p1.applyMatrix4 (mw2.getInverse(markerKanji.matrixWorld));//eye's position in markerKanji's world (markerHiro 一開始尚未創建完成時，無法使用，會是錯誤值)
+	//console.log(p1)
+	
+	//******************************************************************//problem
+	var vetball = ball.sub(p0);//眼睛->球
+	
+	var vetA = baseA.clone().position.sub(p0);//眼睛->baseA
+	
+	var vetB = baseB.clone().position.sub(p0);//眼睛->baseB//problem
+	//******************************************************************//problem
+	
+	
+	var vBtball = vetball.clone().sub(vetB);//發射方baseB 至 球落地位置 的向量
+	var vAtB = vetB.clone().sub(vetA);//被攻方baseA 至 攻擊方baseB 的向量
+
+	var vAtballinw = vBtball.clone().add(vAtB);//世界座標中 baseA 至 球落點的向量(尚未轉換成baseB座標系統)
+
+	vAtballinw.y = 0;//未用到y
+	var aball = new THREE.Object3D();
+	baseA.add(aball);//for localToWorld
+	aball.position.set(vAtballinw.length(),0,0);//在baseB座標系中設一個與"baseB->球"向量長度一樣的向量
+	baseA.updateMatrixWorld();//FOR LOCALTOWORLD very important!!!!!!!!!!
+	var aballinw = baseA.localToWorld(aball.clone().position).sub(baseA.position);//求出世界座標系中該向量(aball)的模樣
+	var Aangle = Math.atan2(-vAtballinw.z ,vAtballinw.x);
+	var Aangle2 = Math.atan2(-aballinw.z ,aballinw.x);//再與"baseB->球"向量求得夾角(angle-angle2)
+	// if(angle < 0) angle += Math.PI
+	lacA = aball.position.applyAxisAngle ( new THREE.Vector3(0,1,0), Aangle-Aangle2);//在baseB座標系裡把剛剛設的向量旋轉一樣的角度  
+  
+	if (collisionA) {
+		//console.log("collisionA")
+		// closest Hex turns RED
+		let ij = Hex.r2toHex (lacA.x,lacA.z).storage()
+		
+		/////////////////////////////BaseA/////////////////////////////
+		if((ij[0] <= 8 && ij[0] >= 0) && (ij[1] <= 8 && ij[1] >= 0)){
+			m[ij[0]][ij[1]].pick();
+			m[ij[0]][ij[1]].mesh.material.color = new THREE.Color("hsl(240, 100%, 50%)");
+			if(m[ij[0]][ij[1]].blood >= 1){
+				m[ij[0]][ij[1]].blood -= 1;
+				m[ij[0]][ij[1]].mesh.position.y -= 4.8/160;
+				score += 10;
+			}
+			else if(m[ij[0]][ij[1]].blood <= 1 && m[ij[0]][ij[1]].blood > 0){
+				m[ij[0]][ij[1]].blood -= 0.5;
+				m[ij[0]][ij[1]].mesh.position.y -= 2.3/160;
+				score += 5;
+			}
+		}
+		// find all distance with 1's . make them YELLOW
+		if((ij[0] <= 8 && ij[0] >= 0) && (ij[1] <= 8 && ij[1] >= 0)){
+			j = m[ij[0]][ij[1]].q;//for BaseA
+			k = m[ij[0]][ij[1]].r;//for BaseA
+		}else{
+			j=0;
+			k=0;
+		}
+		let nb = [[1,0],[-1,0],[0,-1],[0,1],[1,-1],[-1,1]];
+		for (let i = 0; i < nb.length; i++) {
+			let xx = j + nb[i][0];
+			let zz = k + nb[i][1];
+			let yy = -xx -zz;
+
+			/////////////////////////////BaseA/////////////////////////////
+			if((ij[0] <= 8 && ij[0] >= 0) && (ij[1] <= 8 && ij[1] >= 0)){
+			// ignore out-of-bound hex's
+			if (Math.abs (xx)>N || Math.abs(zz)>N || Math.abs(yy)>N) {
+				continue;
+			}
+			let tmpHex = new Hex (xx,zz);
+			let ss = tmpHex.storage();
+			if(m[ss[0]][ss[1]].blood >= 1){
+				m[ss[0]][ss[1]].mesh.position.y -= 2.5/160;
+			    m[ss[0]][ss[1]].mesh.material.color = new THREE.Color("hsl(240, 100%, 80%)");
+			    m[ss[0]][ss[1]].blood -= 0.5;
+			    score += 5;
+			}
+			else if(m[ss[0]][ss[1]].blood <= 1 && m[ss[0]][ss[1]].blood > 0){
+				m[ss[0]][ss[1]].mesh.position.y -= 2.3/160;
+				m[ss[0]][ss[1]].mesh.material.color = new THREE.Color("hsl(240, 100%, 50%)");
+				m[ss[0]][ss[1]].blood -= 0.5;
+				score += 5;
+			}
+			else{
+			    m[ss[0]][ss[1]].mesh.material.color = new THREE.Color("hsl(240, 100%, 50%)");
+			}
+			}
+		}
+	}
+}
+
+function collisionResponseB(){	//baseB碰撞處理
+	//////////////////////for locateB ////////////////////////
+	var ball = new THREE.Vector3(6,0,0);//for test
+	let p0 = new THREE.Vector3 (0,0,-1.42);
+	let mw = new THREE.Matrix4();		
+	p0.applyMatrix4 (mw.getInverse(markerHiro.matrixWorld));
+	
+	var vetball = ball.sub(camera.position);//眼睛->球
+	
+	var vetA = baseA.clone().position.sub(camera.position);//眼睛->baseA
+
+	var vetB = baseB.clone().position.sub(camera.position);//眼睛->baseB
+
+	var vBtball = vetball.clone().sub(vetB);//發射方baseB 至 球落地位置 的向量
+	var vAtB = vetB.clone().sub(vetA);//被攻方baseA 至 攻擊方baseB 的向量
+
+	var vAtballinw = vBtball.clone().add(vAtB);//世界座標中 baseA 至 球落點的向量(尚未轉換成baseB座標系統)
+
+	var vAtball = vetball.clone().sub(vetA);//發射方baseA 至 球落地位置 的向量
+	var vBtA = vetA.clone().sub(vetB);//被攻方baseB 至 攻擊方baseA 的向量
+
+	var vBtballinw = vAtball.clone().add(vBtA);//世界座標中 baseB 至 球落點的向量(尚未轉換成baseB座標系統)
+
+	vBtballinw.y = 0;//未用到y
+	var bball = new THREE.Object3D();
+	baseB.add(bball);//for localToWorld
+	bball.position.set(vBtballinw.length(),0,0);//在baseB座標系中設一個與"baseB->球"向量長度一樣的向量
+	baseB.updateMatrixWorld();//FOR LOCALTOWORLD very important!!!!!!!!!!
+	var bballinw = baseB.localToWorld(bball.clone().position).sub(baseB.position);//求出世界座標系中該向量(bball)的模樣
+	var angle = Math.atan2(-vBtballinw.z ,vBtballinw.x);
+	var angle2 = Math.atan2(-bballinw.z ,bballinw.x);//再與"baseB->球"向量求得夾角(angle-angle2)
+	// if(angle < 0) angle += Math.PI
+	lacB = bball.position.applyAxisAngle ( new THREE.Vector3(0,1,0), angle-angle2);//在baseB座標系裡把剛剛設的向量旋轉一樣的角度
+  
+	if (collisionB) {
+		//console.log("collisionB")
+		// closest Hex turns RED
+		let lm = Hex.r2toHex (lacB.x/160,lacB.z/160).storage()
+		/////////////////////////////BaseB/////////////////////////////
+		if((lm[0] <= 8 && lm[0] >= 0) && (lm[1] <= 8 && lm[1] >= 0)){
+			mB[lm[0]][lm[1]].pick();
+			mB[lm[0]][lm[1]].mesh.material.color = new THREE.Color("hsl(0, 100%, 50%)");
+			if(mB[lm[0]][lm[1]].blood >= 1){
+				mB[lm[0]][lm[1]].blood -= 1;
+				mB[lm[0]][lm[1]].mesh.position.y -= 4.8/160;
+				scoreB += 10;
+			}
+			else if(mB[lm[0]][lm[1]].blood <= 1 && mB[lm[0]][lm[1]].blood > 0){
+				mB[lm[0]][lm[1]].blood -= 0.5;
+				mB[lm[0]][lm[1]].mesh.position.y -= 2.3/160;
+				scoreB += 5;
+			}
+		}
+		// find all distance with 1's . make them YELLOW
+		if((lm[0] <= 8 && lm[0] >= 0) && (lm[1] <= 8 && lm[1] >= 0)){
+			s = mB[lm[0]][lm[1]].q;//for BaseB
+			t = mB[lm[0]][lm[1]].r;//for BaseB
+		}else{
+			s=0;
+			t=0;
+		}
+		let nb = [[1,0],[-1,0],[0,-1],[0,1],[1,-1],[-1,1]];
+		for (let i = 0; i < nb.length; i++) {
+			let xxB = s + nb[i][0];
+			let zzB = t + nb[i][1];
+			let yyB = -xxB -zzB;
+
+			/////////////////////////////BaseB/////////////////////////////
+			if((lm[0] <= 8 && lm[0] >= 0) && (lm[1] <= 8 && lm[1] >= 0)){
+			// ignore out-of-bound hex's
+			if (Math.abs (xxB)>N || Math.abs(zzB)>N || Math.abs(yyB)>N) {
+			    continue; 
+			}
+			let tmpHexB = new Hex (xxB,zzB);
+			let ssB = tmpHexB.storage();
+			if(mB[ssB[0]][ssB[1]].blood >= 1){
+				mB[ssB[0]][ssB[1]].mesh.position.y -= 2.5/160;
+				mB[ssB[0]][ssB[1]].mesh.material.color = new THREE.Color("hsl(0, 100%, 80%)");
+				mB[ssB[0]][ssB[1]].blood -= 0.5;
+				scoreB += 5;
+			}
+			else if(mB[ssB[0]][ssB[1]].blood <= 1 && mB[ssB[0]][ssB[1]].blood > 0){
+				mB[ssB[0]][ssB[1]].mesh.position.y -= 2.3/160;
+				mB[ssB[0]][ssB[1]].mesh.material.color = new THREE.Color("hsl(0, 100%, 50%)");
+				mB[ssB[0]][ssB[1]].blood -= 0.5;
+				scoreB += 5;
+			}
+			else{
+			    mB[ssB[0]][ssB[1]].mesh.material.color = new THREE.Color("hsl(0, 100%, 50%)");
+			}
+			}
+		}
+	}
+}
+
+function onTouchStart (event) {
+	console.log ('in touch start')
+	if (event.touches.length == 1) {
+		event.preventDefault();
+		//cubeSpin = !cubeSpin;
+		let touchX = (event.touches[0].pageX / window.innerWidth) * 2 - 1;
+		let touchY = -(event.touches[0].pageY / window.innerHeight) * 2 + 1;
+		$("#X").val(touchX.toFixed(3));
+		$("#Y").val(touchY.toFixed(3));
+		//touch event
+		if (touchX < -0.65 && touchX > -0.95 && touchY < -0.63 && touchY > -0.83){
+			socket.emit ('toggle', myID);
+		}
+		else {
+			console.log ('no hit');
+		}
+	}
+	/*else if (event.touches.length == 2) {
+		event.preventDefault();
+		classroom.visible = !classroom.visible;
+	}*/
+}
+function onMouseDown (event) {
+	event.preventDefault();
+  	let mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+  	let mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+		$("#X").val(mouseX.toFixed(3));
+		$("#Y").val(mouseY.toFixed(3));
+		// use 2D algorithm
+		
+		//touch event
+		if(mouseX < -0.65 && mouseX > -0.95 && mouseY < -0.63 && mouseY > -0.83){
+			socket.emit ('toggle', myID);
+		}
+		else {
+			console.log ('no hit');
+		}
+}
+</script>
+</body>
