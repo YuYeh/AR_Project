@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!-- three.js library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/94/three.min.js"></script>
+<script src="https://cdn.rawgit.com/j91157j91157/ARPJ/master/three.js/examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<!-- ar.js -->
+<script src="https://cdn.rawgit.com/j91157j91157/ARPJ/master/three.js/build/ar.js"></script>
+
+<head>
+  <title>Distance Test</title>
+</head>
+<body>
+<script>
+var renderer, scene, camera;
+var stats;
+var markerHiro, markerKanji;
+var arToolKitSource, arToolKitContext;
+var tmp = true;
+var A,B;
+var data = [];
+init();
+animate();
+
+function addMarkerHiro(){  
+	let markerHiro = new THREE.Group()
+	var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerHiro, {
+		type : 'pattern',
+		patternUrl : 'https://raw.githubusercontent.com/j91157j91157/ARPJ/master/data/data/patt.hiro'
+	})
+	//light
+	var geometry	= new THREE.OctahedronGeometry( 0.1, 0 )
+	var material	= new THREE.MeshNormalMaterial({
+		wireframe: true
+	}); 
+	A	= new THREE.Mesh( geometry, material );
+	markerHiro.add( A );
+	return markerHiro;
+}
+
+function addMarkerKanji () {						//Make BaseA World!
+	let markerKanji = new THREE.Group();
+	var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerKanji, {
+		type : 'pattern',
+		patternUrl : 'https://raw.githubusercontent.com/j91157j91157/ARPJ/master/data/data/patt.kanji'
+	})
+	var geometry	= new THREE.OctahedronGeometry( 0.1, 0 )
+	var material	= new THREE.MeshNormalMaterial({
+		wireframe: true
+	}); 
+	B	= new THREE.Mesh( geometry, material );
+	markerKanji.add(B);
+	return markerKanji;
+}
+
+function init() {
+	// https://stackoverflow.com/questions/9038625/detect-if-device-is-ios?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+	//let _iOSDevice = !!navigator.platform && /iPad|iPhone|iPod/.test(navigator.platform);
+	let _iOSDevice = !!navigator.platform.match(/iPhone|iPod|iPad/);
+	console.log ('iOS: ' + _iOSDevice);
+	//let mycanvas = $('#mycanvas')   // this does NOT work ...
+	renderer	= new THREE.WebGLRenderer({
+		//antialias	: true,
+		alpha: true
+	});
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setClearColor(new THREE.Color('lightgrey'), 0);
+	renderer.domElement.style.position = 'absolute';
+	renderer.domElement.style.top = '0px';
+	renderer.domElement.style.left = '0px';
+	renderer.shadowMap.enabled = true;	//very important!!
+	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+	document.body.appendChild( renderer.domElement );
+	// for multi-pass rendering
+	renderer.autoClear = false;
+	//renderer shadow
+	renderer.shadowMap.enabled = true;
+	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+	
+	
+	scene = new THREE.Scene();
+	camera = new THREE.Camera();
+	scene.add(camera);
+	
+	////////////////////////////////////////////////////////////////////////////////
+	//          handle arToolkitSource
+	////////////////////////////////////////////////////////////////////////////////
+	arToolkitSource = new THREEx.ArToolkitSource({
+		sourceType : 'webcam',
+	})
+	arToolkitSource.init(function onReady(){
+		onResize()
+	})
+	// handle resize
+	window.addEventListener('resize', function(){
+		onResize()
+	})
+	function onResize(){
+		arToolkitSource.onResize()
+		arToolkitSource.copySizeTo(renderer.domElement)
+		if( arToolkitContext.arController !== null ){
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)
+		}
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	//          initialize arToolkitContext
+	////////////////////////////////////////////////////////////////////////////////
+	arToolkitContext = new THREEx.ArToolkitContext({
+		cameraParametersUrl: 'https://raw.githubusercontent.com/j91157j91157/ARPJ/master/data/data/camera_para.dat',
+		detectionMode: 'mono',
+		maxDetectionRate: 30,
+		canvasWidth: 80*3,
+		canvasHeight: 60*3,
+	})
+	// initialize it
+	arToolkitContext.init(function onCompleted(){
+		// copy projection matrix to camera
+		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+	})
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//Make world !!
+	markerHiro = addMarkerHiro();
+	markerKanji = addMarkerKanji();
+	
+	scene.add (markerHiro,markerKanji);
+
+	stats = new Stats();
+	document.body.appendChild(stats.dom);
+}
+
+function getABDistance() {
+	/*let pos1 = A.localToWorld(new THREE.Vector3());
+	let pos2 = B.localToWorld(new THREE.Vector3());
+	return pos1.distanceTo(pos2);*/
+	let distance = A.worldToLocal(B.localToWorld(new THREE.Vector3()).clone());
+	return distance.length();
+}
+function animate() {
+	requestAnimationFrame(animate);
+	if( arToolkitSource.ready === false )	return
+	arToolkitContext.update( arToolkitSource.domElement )
+	
+	if(markerHiro.visible && markerKanji.visible) {
+		markerHiro.updateMatrix();
+		markerHiro.updateMatrixWorld();
+		markerKanji.updateMatrix();
+		markerKanji.updateMatrixWorld();
+		if(tmp) {
+			//data.push(markerHiro.position.distanceTo(markerKanji.position));	
+			data.push( getABDistance());				
+			//console.log("Distance: " + markerHiro.position.distanceTo(markerKanji.position));
+			console.log("Distance: " + getABDistance());
+			tmp = false;
+		}
+	} else {
+		if(!tmp) {
+			var avg = 0;
+			for(let i = 0; i < data.length;i++) {
+				avg += Number(data[i]);
+			}
+			console.log("Data:" + data.length);
+			//console.log("average: " + avg/data.length * 8);
+			console.log("average: " + avg/data.length * 5.5);
+			tmp = true;
+		}	
+	}
+	renderer.clear();
+	renderer.render (scene, camera);
+	
+	stats.update();
+}
+</script>
+</body>

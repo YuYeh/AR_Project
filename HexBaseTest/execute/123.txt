@@ -245,7 +245,7 @@ function initBallVector(){
 	let p1 = markerHiro.position.clone();
 	let p2 = markerKanji.position.clone();
 	let localKanji = markerHiro.worldToLocal(markerKanji.position.clone());
-	d = localKanji.length();
+	d = localKanji.length()+0.2;
 	console.log(d);
 	//d = markerHiro.position.distanceTo(markerKanji.position);
 	v0 = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta))));
@@ -431,7 +431,7 @@ function init() {
 	markerHiro.add(shell.obj)
 	stats = new Stats();
 	document.body.appendChild(stats.dom);
-	//iOS touchä»‹é¢?
+	//iOS touch¤¶­±?
 	if (_iOSDevice)
 		window.addEventListener('touchstart', onTouchStart, false)
 	else
@@ -585,7 +585,7 @@ function makeHex(color) { //HexBase
 	return mesh;
 }
 
-function makeCircle () { //åœ“æŸ±
+function makeCircle () { //¶ê¬W
 	circle = new THREE.Mesh(new THREE.CylinderGeometry( 5/160, 5/160, 10/160, 32 ), new THREE.MeshLambertMaterial({
 		color: new THREE.Color("hsl(0, 100%, 100%)")
 	}));
@@ -594,7 +594,7 @@ function makeCircle () { //åœ“æŸ±
 	return circle
 }
 
-function collisionResponseA(){	//baseAç¢°æ’è™•ç†
+function collisionResponseA(){	//baseA¸I¼²³B²z
 	if (collisionA) {
 		//console.log("collisionA")
 		// closest Hex turns RED
@@ -657,7 +657,7 @@ function collisionResponseA(){	//baseAç¢°æ’è™•ç†
 	}
 }
 
-function collisionResponseB(){	//baseBç¢°æ’è™•ç†
+function collisionResponseB(){	//baseB¸I¼²³B²z
 	var ww = markerHiro.localToWorld(shell.obj.position.clone());
 	var kk = markerKanji.worldToLocal(ww.clone());
 	lacB = kk;
