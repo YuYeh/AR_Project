@@ -6,7 +6,9 @@
 <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 <!-- ar.js -->
 <script src="https://cdn.rawgit.com/j91157j91157/ARPJ/master/three.js/build/ar.js"></script>
-
+<div style='font-size:2em;position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
+	Distance:<input id='D' type='text'>
+</div>
 <head>
   <title>Distance Test</title>
 </head>
@@ -129,11 +131,11 @@ function init() {
 }
 
 function getABDistance() {
-	/*let pos1 = A.localToWorld(new THREE.Vector3());
+	let pos1 = A.localToWorld(new THREE.Vector3());
 	let pos2 = B.localToWorld(new THREE.Vector3());
-	return pos1.distanceTo(pos2);*/
-	let distance = A.worldToLocal(B.localToWorld(new THREE.Vector3()).clone());
-	return distance.length();
+	return pos1.distanceTo(pos2);
+	/*let distance = A.worldToLocal(B.localToWorld(new THREE.Vector3()).clone());
+	return distance.length();*/
 }
 function animate() {
 	requestAnimationFrame(animate);
@@ -159,9 +161,10 @@ function animate() {
 				avg += Number(data[i]);
 			}
 			console.log("Data:" + data.length);
-			//console.log("average: " + avg/data.length * 8);
-			console.log("average: " + avg/data.length * 5.5);
+			console.log("average: " + avg/data.length * 8);
+			//console.log("average: " + avg/data.length * 5.5);
 			tmp = true;
+			$("#D").val(avg/data.length * 8);
 		}	
 	}
 	renderer.clear();
