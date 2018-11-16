@@ -1056,12 +1056,12 @@ function animate() {
 		shell.updates(0.02);
 		//window.removeEventListener('mousedown', onDocumentMouseDown, false);
 		//window.removeEventListener ('mouseup', onMouseUp, false);
-		//window.removeEventListener ('touchstart', onTouchStart, false);
-		//window.removeEventListener('touchend', onTouchEnd, false);
+		window.removeEventListener ('touchstart', onTouchStart, false);
+		window.removeEventListener('touchend', onTouchEnd, false);
 	} else {
 		//if (_iOSDevice) {
-		//	window.addEventListener('touchstart', onTouchStart, false);
-			//window.addEventListener('touchend', onTouchEnd, false);
+			window.addEventListener('touchstart', onTouchStart, false);
+			window.addEventListener('touchend', onTouchEnd, false);
 		/*}
 		else {
 			window.addEventListener ('mousedown', onMouseDown, false);
