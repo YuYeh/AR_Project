@@ -446,7 +446,7 @@ function init() {
 	console.log ('iOS: ' + _iOSDevice);
 	//let mycanvas = $('#mycanvas')   // this does NOT work ...
 	renderer	= new THREE.WebGLRenderer({
-		//antialias	: true,
+		antialias	: true,
 		alpha: true
 	});
 	renderer.setSize( window.innerWidth, window.innerHeight );
