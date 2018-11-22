@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!-- three.js library -->
+<script src='../examples/vendor/three.js/build/three.js'></script>
+<script src='../examples/vendor/three.js/build/three.min.js'></script>
+<script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+
+<!-- jsartookit -->
+<script src="../vendor/jsartoolkit5/build/artoolkit.min.js"></script>
+<script src="../vendor/jsartoolkit5/js/artoolkit.api.js"></script>
+<!-- include threex.artoolkit -->
+<script src="../src/threex/threex-artoolkitsource.js"></script>
+<script src="../src/threex/threex-artoolkitcontext.js"></script>
+<script src="../src/threex/threex-arbasecontrols.js"></script>
+<script src='marker-training/threex-armarkercontrols.js'></script>
+<!--<script src="../src/threex/threex-armarkercontrols.js"></script>-->
+<script>THREEx.ArToolkitContext.baseURL = '../'</script>
+
+<!-- 籃球網 -->
+<!--script src="vendor/three.js"></script>
+<script src="vendor/Detector.js"></script>
+<script src="vendor/Cloth.js"></script-->
+
+<!--籃球架-->
+<script src = "vendor/BasketballStands.js"></script>
+
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;'><div style='position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
+	<a href="https://github.com/jeromeetienne/AR.js/" target="_blank">AR.js</a> - three.js mobile performance
+	<br/>
+	Code by <a href="https://twitter.com/snigelpaogat" target='_blank'>Fredrik Blomqvist</a> and 
+	<a href='https://twitter.com/jerome_etienne' target='_blank'>@jerome_etienne</a>
+</div>
+<script>
+
+	class Ball {
+		constructor (mass = 1, radius=38/Math.PI, friction = 0) {
+			this.type = 'ball';
+			this.mass = mass;  // may need to differentiate basketball & bowling ball
+			this.radius = radius;
+			this.friction = friction;  // for contact
+
+			// for dynamics calculation
+			this.pos = new THREE.Vector3();
+			this.vel = new THREE.Vector3();
+			this.force = new THREE.Vector3();
+			this.count = 0;
+
+			this.obj = new THREE.Object3D();
+			let mesh = new THREE.Mesh (new THREE.SphereGeometry(radius, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}))
+			this.obj.add (mesh)
+			mesh.castShadow = true;
+			mesh.receiveShadow = true;
+		}
+
+		update(dt) {
+
+			// after GLOBAL collision & contact
+
+			this.vel.add (this.force.clone().multiplyScalar(dt))
+			this.pos.add (this.vel.clone().multiplyScalar(dt)) 
+
+			this.obj.position.copy (this.pos);
+			//if(this.obj.position.y < 38/Math.PI) {
+			if(this.obj.position.y < 0.05) {
+			if(this.count >2){ 
+				tmp = !tmp;
+				this.obj.position.copy(danboard.target.getWorldPosition());
+				this.pos.copy(this.obj.position);
+				this.vel.copy(v0);
+				posReset = !posReset;
+				nready = !nready;
+				//chargeUp.position.x = -1.82*halfW;
+				chargeUp.position.x = -1.55*halfW;
+			}
+
+			if(this.count ===0) {
+				this.vel.y *= -0.7;
+				this.vel.z *= 0.7;
+				this.vel.x *=0.7;
+			}
+			this.count ++
+			} 
+			else this.count = 0;
+		}
+
+		// useless API
+		/* moveTo(x,y,z) {
+		this.pos.set (x,y,z)
+		}*/
+
+		moveTo(thePos) {
+			this.pos.copy (thePos);
+			this.obj.position.copy (this.pos);
+
+		}
+
+		rotateTo (theta) {  // abs CCW angle
+			this.obj.rotation.z = theta;
+			//this.normal.applyEuler (new THREE.Euler (0,0,theta))
+		}
+	}
+	
+	class Button {
+		constructor (size, x, y){
+		this.size = size;
+		this.centerX = x;
+		this.centerY = y;
+		}
+		d1To (v) { // 1-norm
+			return Math.abs (v[0]-this.centerX) + Math.abs(v[1]-this.centerY);
+		}
+		d2To (v) { // 2-norm
+			return Math.sqrt ( (v[0]-this.centerX)*(v[0]-this.centerX) 
+				+ (v[1]-this.centerY)*(v[1]-this.centerY) );
+		}
+		dInfTo (v) { // inf-norm
+			return Math.max( Math.abs (v[0]-this.centerX), Math.abs(v[1]-this.centerY) )
+		}
+	}
+	
+	class Agent {
+		constructor(pos, mesh) {
+			this.pos = pos.clone();
+			this.vel = new THREE.Vector3();
+			this.force = new THREE.Vector3();
+			this.target = new THREE.Vector3(mesh.body.position);
+			this.size = 1;
+			this.mesh = mesh;
+			this.MAXSPEED = 2.5;
+			this.ARRIVAL_R = 0.05;
+			this.stop = false;
+			this.stand = false;
+			this.walk = 1;
+			//this.nbhd = [];
+			this.mesh.body.position.copy(pos);			
+		}
+		update(dt) {
+			this.accumulateForce();
+			this.vel.add(this.force.clone().multiplyScalar(dt));
+			// velocity modulation
+			let diff = this.target.clone().sub(this.pos)
+			let dst = diff.length();
+			if (dst < this.ARRIVAL_R) {
+				//this.vel.setLength(dst);
+				this.vel.setLength(0);
+				this.pos.copy(this.target);
+			}
+
+			//console.log(diff.length())
+			if(this.stop) {
+				if(this.mesh.leftLeg.rotation.x == 0.7) this.walk = 2;
+				if(this.mesh.rightLeg.rotation.x == 0.7) this.walk = 1;
+				switch(this.walk) {
+					case 1:
+						this.mesh.leftLeg.rotation.x +=0.1;
+						this.mesh.rightLeg.rotation.x -=0.1;
+						break;
+					case 2:
+						this.mesh.leftLeg.rotation.x -=0.1;
+						this.mesh.rightLeg.rotation.x +=0.1;
+				}
+			} 
+
+			if(this.stand){
+				if(this.mesh.leftLeg.rotation.x > 0) {
+					this.mesh.leftLeg.rotation.x -= 0.1;
+					this.mesh.rightLeg.rotation.x += 0.1;
+					if(this.mesh.leftLeg.rotation.x < 0.1)
+						this.stand = !this.stand;
+
+				} else {
+					this.mesh.leftLeg.rotation.x += 0.1;
+					this.mesh.rightLeg.rotation.x -= 0.1; 
+					if(this.mesh.leftLeg.rotation.x > -0.1)
+						this.stand = !this.stand;
+				} 
+			}
+
+			if(this.mesh.leftLeg.rotation.x < this.mesh.rightLeg.rotation.x ) {
+				this.mesh.skirt.rotation.x = this.mesh.leftLeg.rotation.x * 1.2;
+			} else {
+				this.mesh.skirt.rotation.x = this.mesh.rightLeg.rotation.x * 1.2;
+			}
+
+			if(this.mesh.leftLeg.rotation.x > 0.1 ||this.mesh.rightLeg.rotation.x > 0.1) {
+				if(this.mesh.leftLeg.rotation.x > this.mesh.rightLeg.rotation.x ) {
+					this.mesh.skirt2.rotation.x =this.mesh.leftLeg.rotation.x * 1.2;
+				} else {
+					this.mesh.skirt2.rotation.x = this.mesh.rightLeg.rotation.x * 1.2;
+				}
+			}
+			if(diff.length() <0.1){
+				let destination  = objects[2].obj.getWorldPosition()
+				destination.y = this.mesh.body.position.y;
+				let p0 = new THREE.Vector3(0,0,-1);
+				let bangle = p0.angleTo(destination.clone().sub(this.mesh.body.position));
+				let p1 = ball.vel.clone();
+				p1.y = 0;
+				let vangle = p1.angleTo(destination.clone().sub(this.mesh.body.position));
+
+				if(this.stop) {
+					if(this.mesh.body.position.x > destination.x) {
+						if( this.mesh.body.rotation.y < Math.PI + bangle) {
+							this.mesh.body.rotation.y += 0.05;
+							if( this.mesh.body.rotation.y > Math.PI + bangle) {
+								this.stop = !this.stop
+								this.stand = !this.stand;
+							} 
+
+						} else if( this.mesh.body.rotation.y > Math.PI + bangle) {
+							this.mesh.body.rotation.y -= 0.05;
+							if( this.mesh.body.rotation.y < Math.PI + bangle) {
+								this.stop = !this.stop
+								this.stand = !this.stand;
+							}
+						}
+					} else {
+						if( this.mesh.body.rotation.y > Math.PI - bangle) {
+							this.mesh.body.rotation.y -= 0.05;
+							if( this.mesh.body.rotation.y < Math.PI - bangle) {
+								this.stop = !this.stop
+								this.stand = !this.stand;
+							}
+						} else if( this.mesh.body.rotation.y < Math.PI - bangle) {
+							this.mesh.body.rotation.y += 0.05;
+							if( this.mesh.body.rotation.y > Math.PI - bangle) {
+								this.stop = !this.stop
+								this.stand = !this.stand;
+							}
+						}
+					}
+					if(ball.vel.x > 0) {
+						ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),vangle);
+					} else {
+						ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),-vangle);
+					}
+				}  
+			}
+			this.pos.add(this.vel.clone().multiplyScalar(dt))
+			this.mesh.body.position.copy(this.pos)
+			if(nready)ball.moveTo(this.mesh.target.getWorldPosition());
+			initbp.copy(ball.pos)
+		}
+		distanceTo(otherAgent) {
+			return this.pos.distanceTo(otherAgent.pos)
+		}
+		addNbr(otherAgent) {
+			this.nbhd.push(otherAgent)
+		}
+		setTarget(target) {
+			this.target.copy(target)
+		}
+		targetInducedForce(targetPos) {
+			return targetPos.clone().sub(this.pos).normalize().multiplyScalar(this.MAXSPEED).sub(this.vel)
+		}
+
+		accumulateForce() {
+			// seek
+			this.force.copy(this.targetInducedForce(this.target));
+
+
+			// coherence
+			/* if (this.nbhd.length > 0) {
+			let sum = new THREE.Vector3();
+			for (let i = 0; i < this.nbhd.length; i++) 
+			sum.add(this.nbhd[i].pos);
+			sum.divideScalar(this.nbhd.length);
+			this.force.add(this.targetInducedForce(sum))
+			}
+
+			// separation
+			let push = new THREE.Vector3();
+			for (let i = 0; i < this.nbhd.length; i++) {
+			let point = this.pos.clone().sub(this.nbhd[i].pos);
+			push.add(point.setLength(1 / point.length()))
+			}
+			this.force.add(push)*/
+
+		}
+		rUpdate() {
+			this.stop = !this.stop;
+		}
+	}
+	
+	class Danboard {
+		constructor() {
+			loader.setCrossOrigin (''); 
+			let faceTexture = [
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/PiFxBnA.jpg" )}),// +x
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/9KGDYiy.jpg")}),// -x
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/xIbygcS.png" )}),// +y
+				new THREE.MeshLambertMaterial({ visible: false }),// -Y
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/UQjjOu2.jpg" )}),// +z
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/A7tfkyx.jpg" )})// -Z
+			];
+			let material = new THREE.MultiMaterial(faceTexture);
+			let headMesh = new THREE.Mesh(new THREE.CubeGeometry(96/200,58/200,56/200),material);
+
+			let skin = new THREE.MeshLambertMaterial({
+				map: loader.load('https://i.imgur.com/ZSklu60.jpg')});
+
+			let bodyTexture = [
+				skin,
+				skin,
+				skin,
+				skin,
+				new THREE.MeshLambertMaterial({
+						map: loader.load('https://i.imgur.com/uUZxpgM.jpg')}),
+				new THREE.MeshLambertMaterial({
+						map: loader.load('https://i.imgur.com/8UOpKrK.jpg')})
+			];
+
+
+			let bodyMaterial = new THREE.MultiMaterial(bodyTexture);
+			let bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(48/200, 64/200, 32/200),bodyMaterial);
+			headMesh.position.y = 32/200;
+			this.head = new THREE.Object3D();
+			this.head.add(headMesh)
+			this.head.position.y = 30/200;
+			bodyMesh.add(this.head);
+
+			this.leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(8/200, 8/200, 16/200, 32), skin);
+			let leftArm = new THREE.Mesh(new THREE.CubeGeometry(16/200, 16/200, 64/200),skin);
+			leftArm.position.z = 32/200;
+			
+			/////////////////////////////let ball keep on hands/////////////////////////////
+			this.target = new THREE.Object3D();
+			this.target.position.copy(leftArm.position.clone().add(new THREE.Vector3(-19.698/200,0,35/200)));
+			
+			this.leftjoint.add(this.target);
+			this.leftjoint.add(leftArm);
+			this.leftjoint.position.set(32/200,20/200,0)
+			bodyMesh.add(this.leftjoint);
+			this.rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(8/200, 8/200, 16/200, 32), skin);
+			let rightArm = leftArm.clone();
+			rightArm.position.z = 32/200;
+			this.rightjoint.add(rightArm);
+			this.rightjoint.position.set(-32/200,20/200,0);
+			bodyMesh.add(this.rightjoint);
+			this.helfBody = new THREE.Object3D();
+			bodyMesh.position.y = 32/200;
+			this.helfBody.add(bodyMesh);
+
+			this.body = new THREE.Object3D();
+			this.body.add(this.helfBody);
+			let leg = new THREE.Mesh(new THREE.CubeGeometry(20/200, 52/200, 32/200),skin);
+			leg.position.y = -26/200;
+			let cy = new THREE.Mesh(new THREE.CylinderGeometry(6/200, 6/200, 1.2/200, 32), skin);
+			cy.rotation.z = Math.PI/2;
+
+			this.leftLeg = new THREE.Object3D();
+			this.leftLeg.add(leg);
+			this.leftLeg.position.set(12/200,-4/200,0);
+			this.body.add(this.leftLeg);
+
+			this.leftLeg.add(cy);
+			let leg2 = leg.clone();
+			let cy2 = cy.clone();
+			this.rightLeg = new THREE.Object3D();
+			this.rightLeg.add(cy2);
+			this.rightLeg.add(leg2);
+			this.rightLeg.position.set(-12/200,-4/200,0);
+
+			this.body.add(this.rightLeg);
+			this.skirt = new THREE.Object3D();
+			let skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(48/200,24/200,0.4/200),skin);
+			skirtMesh.position.y= -12/200;
+			this.skirt.add(skirtMesh);
+			this.skirt.position.z = 16/200;
+			this.skirt.rotation.x = -0.1;
+			this.helfBody.add(this.skirt);
+			this.skirt2 = new THREE.Object3D();
+			let skirt2Mesh = skirtMesh.clone();
+			this.skirt2.add(skirt2Mesh);
+			this.skirt2.position.z = -16/200;
+			this.skirt2.rotation.x = 0.1;
+			this.helfBody.add(this.skirt2);
+			this.skirt3 = new THREE.Object3D();
+			let skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.4/200,24/200,32/200),skin);
+			skirt3Mesh.position.y= -12/200;
+			this.skirt3.add(skirt3Mesh);
+			this.skirt3.position.x = 24/200;
+			this.skirt3.rotation.z = 0.1;
+			this.helfBody.add(this.skirt3);
+			this.skirt4 = new THREE.Object3D();
+			let skirt4Mesh = skirt3Mesh.clone();
+			this.skirt4.add(skirt4Mesh);
+			this.skirt4.position.x = -24/200;
+			this.skirt4.rotation.z = -0.1;
+			this.helfBody.add(this.skirt4);
+			
+			this.body.traverse (
+			   function (mesh) {
+				 if (mesh instanceof THREE.Mesh) {
+				   mesh.castShadow = true;
+					mesh.receiveShadow = true;
+				  }
+				}
+			);
+		}
+		posSet(x, y, z) {
+			this.body.position.copy(new THREE.Vector3(x, y, z));
+		}
+		headRotate(x, y, z) {
+			this.head.rotation.x = x;
+			//this.head.rotation.y = y;
+			//this.head.rotation.z = z;
+		}
+		
+		bodyRotate(x, y, z) {
+			this.body.rotation.x = x;
+			this.body.rotation.y = y;
+			//this.body.rotation.z = z;
+		}
+		
+		LJointRotate(x, y, z) {
+			this.leftjoint.rotation.x = x;
+			this.leftjoint.rotation.y = y;
+			//this.leftjoint.rotation.z = z;
+		}
+		
+		RJointRotate(x, y, z) {
+			this.rightjoint.rotation.x = x;
+			this.rightjoint.rotation.y = y;
+			//this.rightjoint.rotation.z = z;
+		}
+		LLegRotate(x, y, z) {
+			this.leftLeg.rotation.x = x;
+			//this.leftLeg.rotation.y = y;
+			this.leftLeg.rotation.z = z;
+		}
+		
+		RLegRotate(x, y, z) {
+			this.rightLeg.rotation.x = x;
+			//this.rightLeg.rotation.y = y;
+			this.rightLeg.rotation.z = z;
+		}
+	}
+	
+	/* testing cloth simulation(模擬) */
+	/*
+	var pinsFormation = [];
+	var pins = [ 6 ];
+
+	pinsFormation.push( pins );
+
+	pins = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ];
+	pinsFormation.push( pins );
+
+	pins = [ 0 ];
+	pinsFormation.push( pins );
+
+	pins = []; // cut the rope ;)
+	pinsFormation.push( pins );
+
+	pins = [ 0, cloth.w ]; // classic 2 pins
+	pinsFormation.push( pins );
+
+	pins = pinsFormation[ 1 ];
+*/
+	var renderer, scene, camera, stats, sceneHUD, cameraHUD;
+	var arToolkitSource, arToolkitContext;
+	var danboardPose, danboardPlay;
+	var loader = new THREE.TextureLoader();
+	var danboard;
+	var clothGeometry
+	var tmp = false;
+	
+	var objects = [];
+	var doughnutCP,cpball,update = false;
+	var walk = 1,stand = false;
+	
+	var v0,theta =Math.PI/18*7.3;
+	
+	var raycaster;
+
+	var mouse = new THREE.Vector2();
+	var whRatio, halfW, halfH;
+	var button1,puck;
+	var cubeSpin = false,ready = false,posReset = false;
+	var chargeUp;
+	var prevangle;
+	var doChargeUp = false, type = 1, power;
+	var nready = true;
+	var agent, line, line2, t;
+	var cpball,initbp;
+	var check = false;
+	var ball;
+	init();
+	animate();
+	
+	function buildBasketballStands() {
+		loader.setCrossOrigin ('');
+		var PaintRedMat = new THREE.MeshLambertMaterial({
+		map:loader.load( "https://i.imgur.com/uDsEfox.jpg" )});
+		var black = new THREE.MeshLambertMaterial({
+		map: loader.load( "https://i.imgur.com/dBsfkR6.jpg" )});
+		var boardTexture = [
+		black, 
+		black,
+		black, 
+		black, 
+		new THREE.MeshLambertMaterial({
+		map: loader.load( "https://i.imgur.com/ypg3IJm.jpg" )}),
+		black 
+		];
+		var boardMaterial = new THREE.MultiMaterial(boardTexture);
+		
+		var board = new Board();
+		var buildBasketballStands = new THREE.Object3D();
+	
+		board.moveTo(0,342.5/200,0);
+		buildBasketballStands.add(board.obj);
+		
+		var mesh = new THREE.Mesh(new THREE.CubeGeometry(16/200,2/200,8/200),PaintRedMat);
+		
+		mesh.position.set(0,317/200,6.5/200);
+		buildBasketballStands.add(mesh);
+		
+		
+		var mesh2 = new THREE.Mesh(new THREE.CubeGeometry(16/200,16/200,2/200),PaintRedMat);
+		
+		mesh2.position.set(0,309/200,3.5/200);
+		buildBasketballStands.add(mesh2);
+		
+		
+		var hoop = new Hoop(22.5*0.065*Math.PI/38);
+		hoop.moveTo(0,317/200,32.5/200);
+		hoop.rotateTo(Math.PI/2);
+		
+		buildBasketballStands.add(hoop.obj);
+		
+		// cloth material
+		//var clothTexture = loader.load( 'vendor/circuit_pattern.png' );
+		/*var clothTexture = loader.load( 'vendor/hoop_net.png' );
+		clothTexture.anisotropy = 16;
+
+		var clothMaterial = new THREE.MeshLambertMaterial( {
+			map: clothTexture,
+			side: THREE.DoubleSide,
+			alphaTest: 0.5//不透明值低於此值就不會被renderer
+		} );
+
+		// cloth geometry
+
+		clothGeometry = new THREE.ParametricGeometry( clothFunction, cloth.w, cloth.h );
+
+		// cloth mesh
+		var object = new THREE.Mesh( clothGeometry, clothMaterial );		
+		//markerRoot.add(unitize(object,2));
+		object.customDepthMaterial = new THREE.MeshDepthMaterial( {
+
+			depthPacking: THREE.RGBADepthPacking,
+			map: clothTexture,
+			alphaTest: 0.5
+
+		} );
+		
+		var net = new THREE.Object3D();
+		net.add(object);
+		net.position.set(0,2.51,32.5/200);
+		buildBasketballStands.add(unitize(net,1));*/
+		
+		let blueMat = new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")});
+		
+		var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(20/200,20/200,130/200,32), blueMat);
+		
+		pillar.position.set(0,65/200,-172.5/200);
+		buildBasketballStands.add(pillar);
+		
+		let metalMat = new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")});
+		var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(15/200,15/200,200/200,32), metalMat);
+		
+		pillar2.position.set(0,230/200,-172.5/200);
+		buildBasketballStands.add(pillar2);
+		
+		var pillar3 = new THREE.Mesh(new THREE.CylinderBufferGeometry(15/200,15/200,170/200,32), metalMat);
+		pillar3.rotation.x = Math.PI/2;
+		
+		pillar3.position.set(0,330/200,-87.5/200);
+		buildBasketballStands.add(pillar3);
+		
+		
+		var splice = new THREE.Mesh(new THREE.SphereGeometry(15/200, 32, 32,0), metalMat);
+		splice.rotation.y= Math.PI/2;
+		
+		splice.position.set(0,330/200,-172.5/200);
+		buildBasketballStands.add(splice);
+		
+		
+		//scene.add(buildBasketballStands);
+		
+		buildBasketballStands.position.set(1.59,0,-11.7/6.6);
+		buildBasketballStands.updateMatrixWorld();
+		board.updateWorldPosition(board.obj.getWorldPosition());
+		hoop.updateWorldPosition(hoop.obj.getWorldPosition());
+		
+		if(check) {
+			objects.push(board, hoop);
+		}
+		
+		buildBasketballStands.traverse (
+		   function (mesh) {
+			 if (mesh instanceof THREE.Mesh) {
+			   mesh.castShadow = true;
+				mesh.receiveShadow = true;
+			  }
+			}
+		  );
+		  
+		 return buildBasketballStands; 
+	}	
+	
+	function buildDanboardPose() {
+		let merkerPose = new THREE.Group;
+
+		var markerControls = new THREEx.ArMarkerControls(arToolkitContext, merkerPose, {
+			type : 'pattern',
+			patternUrl : 'marker-training/pattern-pattFile/basketball.patt'
+			// as we controls the camera, set changeMatrixMode: 'cameraTransformMatrix'
+			//changeMatrixMode: 'cameraTransformMatrix'
+		})
+		
+		
+		let danboard = new Danboard();
+
+		danboard.posSet(1.59,0.66/3,-2.7/6.6);
+		danboard.headRotate(-0.2, 0, 0);		
+		danboard.bodyRotate(0.3538825855916411, 3.118206107781434, 0);
+		danboard.LJointRotate(-0.3141592653589793, 0.18283843012080525, 0);
+		danboard.RJointRotate(-0.3141592653589793, -0.23757185514875, 0);
+		danboard.LLegRotate(0.2719878687620627, 0, 0.34188034188034205);
+		danboard.RLegRotate(0.283016266887235, 0, -0.262889440308795);	
+		
+		var ball = new THREE.Mesh(new THREE.SphereGeometry((0.45*2/3)/Math.PI*0.8, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
+		
+		ball.position.set(1.59,1.2,-0.745);
+		
+		merkerPose.add(danboard.body, ball);
+		
+		let basketballStand = buildBasketballStands();
+		check = true;		
+		merkerPose.add(basketballStand);
+		
+		// add a transparent ground-plane shadow-receiver
+		var material = new THREE.ShadowMaterial();
+		material.opacity = 0.7; //! bug in threejs. can't set in constructor
+
+		var floor	=new THREE.Mesh(new THREE.PlaneGeometry(29.7/6.6,21/6.6,20,20),material);		
+		floor.receiveShadow = true;
+		floor.depthWrite = false;
+		
+		floor.position.set(1.31,0,-1.045);
+		floor.rotation.x = -Math.PI/2;
+		merkerPose.add( floor );
+		
+		var directionalLight = new THREE.DirectionalLight( 'white' );
+		directionalLight.position.set( 2, 20, -5 );
+		directionalLight.shadow.mapSize.set(128,128)
+		directionalLight.shadow.mapSize.width = 1024;  
+		directionalLight.shadow.mapSize.height = 1024; 
+		directionalLight.shadow.camera.near = 0.25;    
+		directionalLight.shadow.camera.far = 500;    
+		directionalLight.castShadow = true;
+		//scene.add(new THREE.CameraHelper( directionalLight.shadow.camera ))
+		//directionalLight.target = body;
+		directionalLight.target.position.set(2,0,0);
+		merkerPose.add( directionalLight );
+		merkerPose.add( directionalLight.target );
+		
+		return merkerPose;
+		
+	}
+	
+	function buildDanboarPlay() {
+		let markerPlay = new THREE.Group;
+		var markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerPlay, {
+			type : 'pattern',
+			patternUrl : 'marker-training/pattern-pattFile/markerPlay.patt'
+			// as we controls the camera, set changeMatrixMode: 'cameraTransformMatrix'
+			//changeMatrixMode: 'cameraTransformMatrix'
+		})
+		
+		danboard = new Danboard();
+		agent = new Agent(new THREE.Vector3(1.59,0.66/3,-2.7/6.6), danboard);
+		danboard.headRotate(-0.2, 0, 0);
+		danboard.bodyRotate(0, Math.PI, 0);		
+		danboard.LJointRotate(0, -0.19, 0);
+		danboard.RJointRotate(0, 0.19, 0);
+		danboard.body.updateMatrixWorld();
+		
+		markerPlay.add(danboard.body);
+		
+		ball = new Ball(10,0.05,0.65);
+		markerPlay.add(ball.obj);
+		objects.push(ball);
+		
+		ball.rotateTo(Math.PI/6);	
+		ball.moveTo(danboard.target.getWorldPosition());
+		initbp.copy(ball.pos);
+		
+		let basketballStand = buildBasketballStands();
+		
+		markerPlay.add(basketballStand);
+		
+		agent.update(0.02)
+		v0 = new THREE.Vector3();
+		
+		var p = objects[2].hc.clone();
+		p.y = ball.pos.y;
+		var d = ball.pos.distanceTo(p);
+		
+		let initv = p.clone().sub(ball.pos).normalize()
+		ball.vel.set(initv.x,initv.y,initv.z);
+		ball.vel.applyAxisAngle (ball.vel.clone().cross(new THREE.Vector3(0,1,0)),theta);
+		ball.vel.setLength(Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(objects[2].hc.y-p.y+10/200)))));
+		v0.copy(ball.vel);
+		ball.force.set(0,-10,0);
+		
+		var material = new THREE.ShadowMaterial();
+		
+		var floor	=new THREE.Mesh(new THREE.PlaneGeometry(29.7/6.6,21/6.6,20,20),material);		
+		floor.receiveShadow = true;
+		floor.depthWrite = false;
+		floor.position.set(1.31,0,-1.045);
+		floor.rotation.x = -Math.PI/2;
+		markerPlay.add( floor );
+		
+		var directionalLight = new THREE.DirectionalLight( 'white' );
+		directionalLight.position.set( 2, 20, -5 );
+		directionalLight.shadow.mapSize.set(128,128)
+		directionalLight.shadow.mapSize.width = 1024;  
+		directionalLight.shadow.mapSize.height = 1024; 
+		directionalLight.shadow.camera.near = 0.25;    
+		directionalLight.shadow.camera.far = 500;    
+		directionalLight.castShadow = true;
+		//scene.add(new THREE.CameraHelper( directionalLight.shadow.camera ))
+		//directionalLight.target = body;
+		directionalLight.target.position.set(2,0,0);
+		markerPlay.add( directionalLight );
+		markerPlay.add( directionalLight.target );
+		
+		puck = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 20), new THREE.MeshBasicMaterial({
+			color: 'white',
+			transparent: true,
+			opacity: 0.5
+		}));
+		markerPlay.add(puck);
+		puck.material.visible = false;
+		
+		return markerPlay;
+	}
+	
+	function ballBoardIntersect (ball, board) {
+
+		let point = new THREE.Vector3();
+		//console.log(board.pc)
+		point.copy (ball.pos).sub (board.pc).sub(new THREE.Vector3(0,0,5/400));
+		if(ball.pos.z >board.pc.z) {
+			if(ball.pos.x + ball.radius > board.pc.x - 90/200 && ball.pos.x - ball.radius < board.pc.x + 90/200) {
+				//console.log('check1')
+				if(ball.pos.y + ball.radius > board.pc.y - 52.5/200 && ball.pos.y - ball.radius < board.pc.y + 52.5/200){
+					//console.log('check2')
+					//console.log(point.clone().dot(board.normal))
+					if (point.dot(board.normal) < ball.radius ) {  // close enough
+						console.log('board hit')
+						let vn;  // normal velocity component
+						if ((vn = ball.vel.dot (board.normal)) < -1) {  // run towards plane
+							//console.log ('vn: '+vn)
+							let resCoeff = 0.9;
+							ball.vel.sub (ball.vel.clone().projectOnVector 	(board.normal).multiplyScalar (1+resCoeff))
+						} else if (vn <= 0) {  // contact
+							ball.force.projectOnPlane (board.normal);  // force correction
+							//console.log ('force: ' + ball.force.y)
+							ball.vel.projectOnPlane (board.normal)   // vel correction
+							//console.log ('vel: ' + ball.vel.y)
+							ball.vel.multiplyScalar (1-ball.friction);
+							ball.pos.copy (point.projectOnPlane (board.normal).add(board.pc).add(board.normal.clone().multiplyScalar(ball.radius)))   // position correction
+						}
+					}
+				}
+
+			}  
+		}
+	}
+	
+	function ballHoopIntersect(ball, hoop) {
+		let point = ball.pos.clone();
+		//point.copy (ball.pos);
+		point.y = hoop.hc.y;
+		let projP = point.clone().sub(hoop.hc);//以籃框中心點為原點(轉籃框坐標系)
+		//console.log('lx:' + projP.x+' ly: ' + projP.y+' lz: '+ projP.z)
+		let angle = projP.angleTo(new THREE.Vector3(1,0,0));//計算向量(1,0,0)轉到projP的角度
+		if(ball.pos.z < hoop.hc.z) {
+			angle = Math.PI*2- angle;
+		}
+		//console.log('a: '+angle);
+		//求出距離籃球最近的籃框框架中心點
+		doughnutCP = new THREE.Vector3(hoop.radius*Math.cos(angle),0,hoop.radius*Math.sin(angle)).add(hoop.hc);
+		//console.log('x: '+doughnutCP.x + ' y: ' + doughnutCP.y + ' z: ' + doughnutCP.z)
+		//cpball.position.copy(doughnutCP)
+		let distance = ball.pos.distanceTo(doughnutCP);
+		if(distance < ball.radius+0.5/100) {
+			console.log('hoop hit')
+			let n = ball.pos.clone().sub(doughnutCP).normalize();
+
+			let v = ball.vel;
+			ball.vel.sub (n.clone().multiplyScalar (v.dot(n)*2*55.845/(ball.mass+55.845) ))
+
+			let vv = doughnutCP.clone().sub(ball.pos);
+			let overlap = (hoop.radius+ball.radius) - vv.length();
+			vv.normalize();
+			ball.pos.add ( vv.clone().multiplyScalar  (-overlap/2));
+		}
+	}
+	
+	function makeLine(init,dest) {
+		let geometry = new THREE.Geometry();
+		geometry.vertices.push (new THREE.Vector3(init.x,init.y,init.z)); 
+		geometry.vertices.push (new THREE.Vector3(dest.x,dest.y,dest.z));
+		geometry.computeLineDistances();
+		let mat = new THREE.LineDashedMaterial ({color:0xffff00, dashSize: 3, gapSize: 3})
+		return new THREE.Line(geometry, mat);
+	}
+	
+	function makeLine2(d) {
+		let dt = 0.002;
+		let geometry = new THREE.Geometry();
+		let check = 0;
+		for(pp=0; ball.pos.y >=  ball.radius;pp++) {
+			geometry.vertices.push (new THREE.Vector3(ball.pos.x,ball.pos.y,ball.pos.z)); 
+			ball.vel.add (ball.force.clone().multiplyScalar(dt))
+			ball.pos.add (ball.vel.clone().multiplyScalar(dt))
+		}
+		//console.log(pp)
+		ball.vel.copy(v0)
+		ball.pos.copy(initbp)
+		geometry.computeLineDistances();
+		let mat = new THREE.LineDashedMaterial ({color:0xffff00, dashSize: 3, gapSize: 3})
+		return new THREE.Line(geometry, mat);
+	}
+	
+	function init() {
+		//////////////////////////////////////////////////////////////////////////////////
+		//		Init
+		//////////////////////////////////////////////////////////////////////////////////
+
+		// init renderer
+		renderer	= new THREE.WebGLRenderer({
+			antialias	: true,
+			alpha: true
+		});
+		// renderer.shadowMap.type = THREE.BasicShadowMap
+		// renderer.shadowMap.type = THREE.PCFShadowMap;
+		renderer.shadowMap.type = THREE.PCFSoftShadowMap
+		renderer.shadowMap.enabled = true;
+
+		renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+		// renderer.setPixelRatio( 1/2 );
+
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.domElement.style.position = 'absolute'
+		renderer.domElement.style.top = '0px'
+		renderer.domElement.style.left = '0px'
+		document.body.appendChild( renderer.domElement );
+		
+		
+		
+		whRatio = window.innerHeight/window.innerWidth;
+		renderer.autoClear = false;
+		
+		// array of functions for the rendering loop
+		// init scene and camera
+		scene	= new THREE.Scene();
+
+		var ambient = new THREE.AmbientLight( 0x666666 );
+		scene.add( ambient );		
+		
+		//////////////////////////////////////////////////////////////////////////////////
+		//		Initialize a basic camera
+		//////////////////////////////////////////////////////////////////////////////////
+
+		// Create a camera
+		camera = new THREE.Camera();
+		scene.add(camera);
+		
+		//for HUD scene
+		sceneHUD  = new THREE.Scene();
+		
+		// eye-coordinate bounds
+		//halfH = 10;
+		halfH = 10;
+		//halfW = halfH * whRatio;
+		halfW = halfH * whRatio*4.4;//PC chrome asus手機  模擬器
+		//cameraHUD = new THREE.OrthographicCamera (-10,10, 10,-10, -10,10);
+		//cameraHUD = new THREE.OrthographicCamera (-halfW, halfW, halfH, -halfH, -10,10);
+		//cameraHUD = new THREE.OrthographicCamera (-halfW*0.9,halfW*0.9, halfH*0.85,-halfH*0.85, -10,10);//HTC手機
+		cameraHUD = new THREE.OrthographicCamera (-halfW,halfW, halfH*1.8,-halfH*1.8, -10,10);
+		
+		var buttonSize = halfH/2;
+		//console.log("buttonSize: " + buttonSize)
+		//console.log("halfW: " +halfW + ", halfH: " +halfH*1.8);
+		button = new THREE.Mesh (new THREE.PlaneGeometry(buttonSize, buttonSize), new THREE.MeshBasicMaterial({color:"yellow", transparent:true, opacity:0.8}));	
+		button1 = new Button (buttonSize ,halfW*0.88,halfH*1.8*0.55 );//halfW*0.65, -halfH/1.8
+		//button1 = new Button (buttonSize ,halfW*0.88/23,halfH*1.8*0.55/18 );//halfW*0.65, -halfH/1.8
+		//console.log("cx: " + halfW*0.88/23 + "cy: " + halfH*1.8*0.55/18)
+		//console.log('x: ' + button1.centerX + 'Y: ' + button1.centerY)
+		button.position.set (button1.centerX, -button1.centerY, 0);
+		sceneHUD.add (button);
+		
+		
+		//蓄力條
+		var base = new  THREE.Mesh(new THREE.PlaneGeometry(halfW+0.2,halfH*1.8/10),new THREE.MeshNormalMaterial({side:THREE.DoubleSide}));
+		base.position.set(-halfW/2+0.1,-halfH*1.8/1.6,0)
+		sceneHUD.add(base);
+		
+		chargeUp = new  THREE.Mesh(new THREE.PlaneGeometry(halfW+0.1,halfH*1.8/10-0.5),new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));
+		chargeUp.position.set(-1.55*halfW,-halfH*1.8/1.6,0)
+		//chargeUp.position.set(-halfW/2+0.1,-halfH*1.8/1.6,0)
+		sceneHUD.add(chargeUp);
+		
+		var standard = new  THREE.Mesh(new THREE.PlaneGeometry((halfW+0.2)/20,halfH*1.8/10),new THREE.MeshBasicMaterial({
+			color:"red",
+			side:THREE.DoubleSide,
+			transparent: true,
+			opacity:0.8
+		}));
+		standard.position.set(-halfW/2+0.1,-halfH*1.8/1.6,0)
+		//console.log("標準: " +(standard.position.x+3*halfW/2)/halfW)
+		sceneHUD.add(standard);
+		
+		////////////////////////////////////////////////////////////////////////////////
+		//          handle arToolkitSource
+		////////////////////////////////////////////////////////////////////////////////
+		arToolkitSource = new THREEx.ArToolkitSource({
+			// to read from the webcam
+			sourceType : 'webcam',
+		})
+		
+		arToolkitSource.init(function onReady(){onResize()});
+		
+		// handle resize
+		window.addEventListener('resize', function(){onResize()});
+		////////////////////////////////////////////////////////////////////////////////
+		//          initialize arToolkitContext
+		////////////////////////////////////////////////////////////////////////////////
+			// create atToolkitContext
+		arToolkitContext = new THREEx.ArToolkitContext({
+			cameraParametersUrl: THREEx.ArToolkitContext.baseURL + '../data/data/camera_para.dat',
+			detectionMode: 'mono',
+			// maxDetectionRate: 30,
+			// canvasWidth: 80*3,
+			// canvasHeight: 60*3,
+		})
+		// initialize it
+		arToolkitContext.init(function onCompleted(){
+			// copy projection matrix to camera
+			camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+		})
+		
+		// as we do changeMatrixMode: 'cameraTransformMatrix', start with invisible scene
+		//scene.visible = false;
+		
+		//build danboard
+		danboardPose = buildDanboardPose();
+		
+		
+		scene.add(danboardPose);
+		
+		initbp = new THREE.Vector3();
+		
+		//buildBasketballStands();
+		danboardPlay = buildDanboarPlay();
+		scene.add(danboardPlay);
+		
+		stats = new Stats();
+		document.body.appendChild( stats.dom );
+		
+		document.addEventListener('touchstart', onTouchDown, false);
+		document.addEventListener('touchend', onTouchUp, false);
+		//window.addEventListener('mousedown', onDocumentMouseDown, false);
+		//window.addEventListener ('mouseup', onMouseUp, false);
+		
+	}
+	
+	function unitize (object, targetSize) {
+		// find bounding box of 'object'
+		var box3 = new THREE.Box3();
+		box3.setFromObject (object);
+		var size = new THREE.Vector3();
+		size.subVectors (box3.max, box3.min);
+		var center = new THREE.Vector3();
+		center.addVectors(box3.max, box3.min).multiplyScalar (0.5);
+		console.log ('center: ' + center.x + ', '+center.y + ', '+center.z );
+		console.log ('size: ' + size.x + ', ' +  size.y + ', '+size.z );
+		// uniform scaling according to objSize
+		var objSize = Math.max (size.x, size.y, size.z);
+		var scaleSet = targetSize/objSize;
+		var theObject =  new THREE.Object3D();
+		theObject.add (object);
+		object.scale.set (scaleSet, scaleSet, scaleSet);
+		object.position.y = size.y/2*scaleSet;
+		object.position.set (-center.x*scaleSet, -center.y*scaleSet + size.y/2*scaleSet, -center.z*scaleSet);
+		return theObject;
+	}
+	
+	function onResize(){
+		arToolkitSource.onResize()	
+		arToolkitSource.copySizeTo(renderer.domElement)	
+		if( arToolkitContext.arController !== null ){
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)	
+		}
+		whRatio = window.innerWidth/window.innerHeight;
+		halfW = halfH * whRatio;
+		cameraHUD.left = -halfW;
+		cameraHUD.right = halfW;
+		cameraHUD.autoUpdate = false;
+	}
+	
+	function pickCompute (ndcX, ndcY) {
+				
+		// use 2D algorithm 	
+		//let dist = button1.dInfTo ([halfW * ndcX, halfH * ndcY*1.8]);
+		let dist = button1.dInfTo ([ndcX, halfH * ndcY*1.8]);
+		//$('#touch').text ('Mouse-to-Button: ' + dist.toFixed(2) + ' x: ' + ndcX+ ' y: ' + ndcY);
+		
+		//console.log(dist);
+		if(ndcX > 0.768 && ndcX < 0.99 && ndcY > -0.99 && ndcY < -0.57&& !update && !agent.stop && !agent.stand) {
+			console.log ('picked')
+			ready = !ready;
+			doChargeUp = !doChargeUp;
+			button.material.color.set(0xff891c);
+		} else {
+			console.log ('no hit');
+		}
+		/*if (dist <  button1.size/2) {
+			console.log ('picked')
+			ready = !ready;
+			doChargeUp = !doChargeUp;
+			button.material.color.set(0xff891c);
+		} else {
+			console.log ('no hit');
+		}*/
+	}
+	
+	function onDocumentMouseDown(event) {
+		
+		event.preventDefault();
+		let ndcX = (event.clientX / window.innerWidth) * 2 - 1;
+		let ndcY = -(event.clientY / window.innerHeight) * 2 + 1;
+		//let ndcX = (event.clientX / halfW) * 2 - 1;
+		//let ndcY = -(event.clientY / halfH) * 2 + 1;
+		
+		//raycaster.setFromCamera(mouse, camera);
+		pickCompute (ndcX, ndcY)
+		/*if (ndcX < halfW*0.65 - halfH/12 || ndcX > halfW*0.65 + halfH/12) {
+			console.log ('picked')
+			ready = !ready;
+			doChargeUp = !doChargeUp;
+		} else {
+			console.log ('no hit')
+		}	*/	
+
+	}
+
+	function onMouseUp() {
+		if(ready){
+			cubeSpin = !cubeSpin;
+			//doChargeUp = !doChargeUp;
+			/*power = chargeUp.position.x;
+			power = (power+3*halfW/2)/halfW;*/
+			button.material.color.set("yellow");
+			console.log("fuck fuck")
+		}
+	}
+	
+	function onTouchDown (event) {
+		//console.log(event.touches.length)
+		if (event.touches.length == 1) {
+
+			event.preventDefault();
+			let touch = new THREE.Vector2();
+			touch.x = ( event.touches[0].pageX / window.innerWidth ) * 2 - 1;
+			touch.y = - ( event.touches[0].pageY / window.innerHeight ) * 2 + 1;
+			//console.log(touch);
+			pickCompute (touch.x, touch.y);		
+		}
+	}
+	
+	function  onTouchUp() {
+		if(ready){
+			cubeSpin = !cubeSpin;
+			doChargeUp = !doChargeUp;
+			nready = !nready;
+			power = chargeUp.position.x;
+			power = (power+1.55*halfW)/halfW;
+			//power=0.56;
+			button.material.color.set("yellow");
+			console.log(power);
+			//$('#power').text ('Power: ' + power);
+		}
+	}
+	
+	function render() {
+
+		/*var p = cloth.particles;
+
+		for ( var i = 0, il = p.length; i < il; i ++ ) {
+
+			clothGeometry.vertices[ i ].copy( p[ i ].position );
+
+		}
+
+		clothGeometry.verticesNeedUpdate = true;
+
+		clothGeometry.computeFaceNormals();
+		clothGeometry.computeVertexNormals();*/
+
+		//sphere.position.copy( ballPosition );
+
+		renderer.render( scene, camera );
+
+	}
+	
+	function animate() {
+	
+		requestAnimationFrame( animate );
+		renderer.render( scene, camera );
+		renderer.render (sceneHUD, cameraHUD);
+		/*var time = Date.now();
+		simulate( time );*/
+		stats.update();
+		render();
+		
+		
+		if( arToolkitSource.ready === false )	return
+
+		arToolkitContext.update( arToolkitSource.domElement )
+		
+		// update scene.visible if the marker is seen
+		//scene.visible = danboardPose.visible;
+		
+		//if() {
+			if (cubeSpin) {
+				tmp = !tmp;
+				cubeSpin = !cubeSpin;
+				ready = !ready;
+			}
+			
+			if(ready){
+				if(danboard.leftjoint.rotation.x<Math.PI*11/36) {
+					danboard.leftjoint.rotation.x += 0.1;
+					danboard.rightjoint.rotation.x += 0.1;
+				}
+				ball.moveTo(danboard.target.getWorldPosition());
+			}
+			let p  = objects[2].obj.getWorldPosition();
+			//console.log('hoop.x: '+ p.x + ',hoop.y: ' + p.y + 'hoop.z: ' + p.z)
+			//console.log(ball.pos)
+			p.y = ball.pos.y;
+			
+			if(tmp) {
+				ball.moveTo(danboard.target.getWorldPosition());
+				if(danboard.leftjoint.rotation.x > 0) {
+					danboard.leftjoint.rotation.x -= 0.2;
+					danboard.rightjoint.rotation.x -= 0.2;
+				} 
+				else {
+					let d2 = ball.pos.distanceTo(p);
+					ball.vel.setLength(Math.sqrt(10*d2*d2/(2*Math.cos(theta)*Math.cos(theta)*(d2*Math.tan(theta)-(objects[2].hc.y-p.y+10/200)))));
+					
+					/*if(line)
+						markerRoot.remove(line);
+					line = makeLine(ball.pos,p);
+					markerRoot.add(line);
+					
+					if(t)
+						markerRoot.remove(t);
+					t = new THREE.Mesh(new THREE.CubeGeometry(0.01,2,0.01),new THREE.MeshNormalMaterial());
+					t.position.set(p.x,1,p.z);
+					markerRoot.add(t);*/
+					
+					
+					
+					//console.log("v0.x: " + ball.vel.x + ",v0.y: " + ball.vel.y + ",v0.z: " + ball.vel.z)
+					if(power < 0.51) {
+						ball.vel.setLength(ball.vel.length()*power*1.9);
+					}
+					if(power > 0.56) {
+						ball.vel.setLength(ball.vel.length()+ball.vel.length()*power/10);
+					}  
+					v0.copy(ball.vel);
+					if(line2)
+					danboardPlay.remove(line2);
+					line2 = makeLine2(d2);
+					danboardPlay.add(line2);				
+					console.log('d2: ' + d2)	
+					tmp = !tmp;
+					update = !update;
+
+				}
+
+			} 
+			p.y = danboard.body.position.y;
+			let d = danboard.body.position.distanceTo(p);
+			if(posReset) {
+				let d = 0,pos = new  THREE.Vector3(0,0.3,0);
+				while(d < 1.41 || pos. z <objects[2].obj.getWorldPosition().z||pos.clone().sub(danboard.body.position).length()==0) {
+					pos.x = (4.5*Math.random() - 2.25)+1.31;
+					pos.z = (21*Math.random() - 10.5)/6.6-1.045;
+					let p  = objects[2].obj.getWorldPosition();
+					p.y = danboard.body.position.y;
+					//console.log(p.y)
+					d = p.distanceTo(pos);
+				}
+				agent.setTarget(pos);
+				if(!puck.material.visible) puck.material.visible = !puck.material.visible;
+				puck.position.copy(pos.clone().sub(new THREE.Vector3(0,0.28,0)));
+				agent.rUpdate();
+				let p0 = new THREE.Vector3(0,0,-1);
+				let bangle = p0.angleTo(pos.clone().sub(danboard.body.position));
+				let p1 = ball.vel.clone();
+				p1.y = 0;
+				let vangle = p1.angleTo(pos.clone().sub(danboard.body.position));   
+				if(danboard.body.position.x > pos.x) {
+					danboard.body.rotation.y = Math.PI + bangle;
+				} else {
+					danboard.body.rotation.y = Math.PI - bangle;
+				}
+				if(pos.normalize().x>p1.normalize().x)
+					ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),-vangle);
+				else
+					ball.vel.applyAxisAngle (new THREE.Vector3(0,1,0),vangle);
+					
+				if(line2)
+					danboardPlay.remove(line2);
+				posReset = !posReset;
+			}
+
+			if(doChargeUp) {
+				if(chargeUp.position.x > -halfW/2-0.1) type = 2;
+				if(chargeUp.position.x < -1.55*halfW) type = 1;
+				chargeUp.position.x += type==1 ? halfW/100 : -halfW/100;
+				
+				//console.log(ball.vel)
+				p.y = initbp.y;
+				ball.pos.copy(initbp)
+				//console.log(ball.vel)
+				let d = initbp.distanceTo(p)
+				let v = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(objects[2].hc.y-p.y+10/200))))
+				ball.vel.setLength(v);
+				v0.copy(ball.vel)
+				power = (chargeUp.position.x + 1.55*halfW)/halfW+0.32
+				if(power < 0.51) {
+						console.log(ball.vel)
+						ball.vel.setLength(v*power*1.9+1);
+						console.log(ball.vel)
+						
+					}
+				if(power > 0.56) {
+					ball.vel.setLength(v+v*power/10);
+				}
+				
+				if(line2)
+					danboardPlay.remove(line2);
+				line2 = makeLine2(d);
+				danboardPlay.add(line2);
+				
+				
+			}
+			if(update) {
+				ball.update(0.02);
+			}
+			agent.update(0.02);
+			ballBoardIntersect(objects[0],objects[1]);
+			ballHoopIntersect(objects[0], objects[2]);
+	//	}		
+	}
+
+	// run the rendering loop
+	/*var lastTimeMsec= null
+	requestAnimationFrame(function animate(nowMsec){
+		// keep looping
+		requestAnimationFrame( animate );
+		// measure time
+		lastTimeMsec	= lastTimeMsec || nowMsec-1000/60
+		var deltaMsec	= Math.min(200, nowMsec - lastTimeMsec)
+		lastTimeMsec	= nowMsec
+		// call each update function
+		onRenderFcts.forEach(function(onRenderFct){
+			onRenderFct(deltaMsec/1000, nowMsec/1000)
+		})
+	})*/
+</script></body>

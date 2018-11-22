@@ -4,7 +4,7 @@
 <script src='../examples/vendor/three.js/build/three.js'></script>
 <script src='../examples/vendor/three.js/build/three.min.js'></script>
 <script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
-<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+
 <!-- jsartookit -->
 <script src="../vendor/jsartoolkit5/build/artoolkit.min.js"></script>
 <script src="../vendor/jsartoolkit5/js/artoolkit.api.js"></script>
@@ -17,19 +17,181 @@
 <script>THREEx.ArToolkitContext.baseURL = '../'</script>
 
 <!-- 籃球網 -->
-<script src="vendor/three.js"></script>
+<!--script src="vendor/three.js"></script>
 <script src="vendor/Detector.js"></script>
-<script src="vendor/Cloth.js"></script>
+<script src="vendor/Cloth.js"></script-->
+
+<!--籃球架-->
+<script src = "vendor/BasketballStands.js"></script>
 
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'><div style='position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
 	<a href="https://github.com/jeromeetienne/AR.js/" target="_blank">AR.js</a> - three.js mobile performance
 	<br/>
 	Code by <a href="https://twitter.com/snigelpaogat" target='_blank'>Fredrik Blomqvist</a> and 
 	<a href='https://twitter.com/jerome_etienne' target='_blank'>@jerome_etienne</a>
-</div><script>
+</div>
+<script>
+	class Danboard {
+		constructor() {
+			loader.setCrossOrigin (''); 
+			let faceTexture = [
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/PiFxBnA.jpg" )}),// +x
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/9KGDYiy.jpg")}),// -x
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/xIbygcS.png" )}),// +y
+				new THREE.MeshLambertMaterial({ visible: false }),// -Y
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/UQjjOu2.jpg" )}),// +z
+				new THREE.MeshLambertMaterial({
+				side:THREE.DoubleSide,
+				map: loader.load( "https://i.imgur.com/A7tfkyx.jpg" )})// -Z
+			];
+			let material = new THREE.MultiMaterial(faceTexture);
+			let headMesh = new THREE.Mesh(new THREE.CubeGeometry(1.52/4,0.92/4,0.89/4),material);
+
+			let skin = new THREE.MeshLambertMaterial({
+				map: loader.load('https://i.imgur.com/ZSklu60.jpg')});
+
+			let bodyTexture = [
+				skin,
+				skin,
+				skin,
+				skin,
+				new THREE.MeshLambertMaterial({
+						map: loader.load('https://i.imgur.com/uUZxpgM.jpg')}),
+				new THREE.MeshLambertMaterial({
+						map: loader.load('https://i.imgur.com/8UOpKrK.jpg')})
+			];
+
+
+			let bodyMaterial = new THREE.MultiMaterial(bodyTexture);
+			let bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(0.76/4, 1.02/4, 0.51/4),bodyMaterial);
+			headMesh.position.y = 0.46/4;
+			this.head = new THREE.Object3D();
+			this.head.add(headMesh)
+			this.head.position.y = 0.51/4;
+			bodyMesh.add(this.head);
+
+			this.leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/4, 0.13/4, 0.25/4, 32), skin);
+			let leftArm = new THREE.Mesh(new THREE.CubeGeometry(0.25/4, 0.25/4, 1.02/4),skin);
+			leftArm.position.z = 0.51/4;
+			this.leftjoint.add(leftArm);
+			this.leftjoint.position.set(0.51/4,0.32/4,0)
+			bodyMesh.add(this.leftjoint);
+			this.rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/4, 0.13/4, 0.25/4, 32), skin);
+			let rightArm = leftArm.clone();
+			rightArm.position.z = 0.51/4;
+			this.rightjoint.add(rightArm);
+			this.rightjoint.position.set(-0.51/4,0.32/4,0);
+			bodyMesh.add(this.rightjoint);
+			this.helfBody = new THREE.Object3D();
+			bodyMesh.position.y = 0.51/4;
+			this.helfBody.add(bodyMesh);
+
+			this.body = new THREE.Object3D();
+			this.body.add(this.helfBody);
+			let leg = new THREE.Mesh(new THREE.CubeGeometry(0.32/4, 0.83/4, 0.51/4),skin);
+			leg.position.y = -0.415/3;
+			let cy = new THREE.Mesh(new THREE.CylinderGeometry(0.1/4, 0.1/4, 0.02/4, 32), skin);
+			cy.rotation.z = Math.PI/2;
+
+			this.leftLeg = new THREE.Object3D();
+			this.leftLeg.add(leg);
+			this.leftLeg.position.set(0.19/4,-0.06/4,0);
+			this.body.add(this.leftLeg);
+
+			this.leftLeg.add(cy);
+			let leg2 = leg.clone();
+			let cy2 = cy.clone();
+			this.rightLeg = new THREE.Object3D();
+			this.rightLeg.add(cy2);
+			this.rightLeg.add(leg2);
+			this.rightLeg.position.set(-0.19/4,-0.06/4,0);
+
+			this.body.add(this.rightLeg);
+			this.skirt = new THREE.Object3D();
+			let skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(0.76/4,0.38/4,0.01/4),skin);
+			skirtMesh.position.y= -0.19/4;
+			this.skirt.add(skirtMesh);
+			this.skirt.position.z = 0.25/4;
+			this.skirt.rotation.x = -0.1;
+			this.helfBody.add(this.skirt);
+			this.skirt2 = new THREE.Object3D();
+			let skirt2Mesh = skirtMesh.clone();
+			this.skirt2.add(skirt2Mesh);
+			this.skirt2.position.z = -0.25/4;
+			this.skirt2.rotation.x = 0.1;
+			this.helfBody.add(this.skirt2);
+			this.skirt3 = new THREE.Object3D();
+			let skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.01/4,0.38/4,0.51/4),skin);
+			skirt3Mesh.position.y=-0.25/4;
+			this.skirt3.add(skirt3Mesh);
+			this.skirt3.position.x = 0.38/4;
+			this.skirt3.rotation.z = 0.1;
+			this.helfBody.add(this.skirt3);
+			this.skirt4 = new THREE.Object3D();
+			let skirt4Mesh = skirt3Mesh.clone();
+			this.skirt4.add(skirt4Mesh);
+			this.skirt4.position.x = 0.38/4;
+			this.skirt4.rotation.z = -0.1;
+			this.helfBody.add(this.skirt4);
+			
+			this.body.traverse (
+			   function (mesh) {
+				 if (mesh instanceof THREE.Mesh) {
+				   mesh.castShadow = true;
+					mesh.receiveShadow = true;
+				  }
+				}
+			);
+		}
+		posSet(x, y, z) {
+			this.body.position.copy(new THREE.Vector3(x, y, z));
+		}
+		headRotate(x, y, z) {
+			this.head.rotation.x = x;
+			//this.head.rotation.y = y;
+			//this.head.rotation.z = z;
+		}
+		
+		bodyRotate(x, y, z) {
+			this.body.rotation.x = x;
+			this.body.rotation.y = y;
+			//this.body.rotation.z = z;
+		}
+		
+		LJointRotate(x, y, z) {
+			this.leftjoint.rotation.x = x;
+			this.leftjoint.rotation.y = y;
+			//this.leftjoint.rotation.z = z;
+		}
+		
+		RJointRotate(x, y, z) {
+			this.rightjoint.rotation.x = x;
+			this.rightjoint.rotation.y = y;
+			//this.rightjoint.rotation.z = z;
+		}
+		LLegRotate(x, y, z) {
+			this.leftLeg.rotation.x = x;
+			//this.leftLeg.rotation.y = y;
+			this.leftLeg.rotation.z = z;
+		}
+		
+		RLegRotate(x, y, z) {
+			this.rightLeg.rotation.x = x;
+			//this.rightLeg.rotation.y = y;
+			this.rightLeg.rotation.z = z;
+		}
+	}
 	
 	/* testing cloth simulation(模擬) */
-
+	/*
 	var pinsFormation = [];
 	var pins = [ 6 ];
 
@@ -48,155 +210,21 @@
 	pinsFormation.push( pins );
 
 	pins = pinsFormation[ 1 ];
-
+*/
 	var renderer, scene, camera, stats;
 	var arToolkitSource, arToolkitContext;
 	var markerRoot;
 	
 	var loader = new THREE.TextureLoader();
-	var head, leftjoint, rightjoint, leftLeg, rightLeg, body, helfBody;
+	var leftjoint, rightjoint, leftLeg, rightLeg, body, helfBody;
+	var danboard;
 	var skirt, skirt2, skirt3, skirt4;
 	var clothGeometry
+	
 	init();
 	animate();
 	
-	function buildDanboard() {
-		loader.setCrossOrigin (''); 
-
-		var faceTexture = [
-			new THREE.MeshLambertMaterial({
-			side:THREE.DoubleSide,
-			map: loader.load( "https://i.imgur.com/PiFxBnA.jpg" )}),// +x
-			new THREE.MeshLambertMaterial({
-			side:THREE.DoubleSide,
-			map: right = loader.load( "https://i.imgur.com/9KGDYiy.jpg")}),// -x
-			new THREE.MeshLambertMaterial({
-			side:THREE.DoubleSide,
-			map: loader.load( "https://i.imgur.com/xIbygcS.png" )}),// +y
-			new THREE.MeshLambertMaterial({ visible: false }),// -Y
-			new THREE.MeshLambertMaterial({
-			side:THREE.DoubleSide,
-			map: loader.load( "https://i.imgur.com/UQjjOu2.jpg" )}),// +z
-			new THREE.MeshLambertMaterial({
-			side:THREE.DoubleSide,
-			map: loader.load( "https://i.imgur.com/A7tfkyx.jpg" )})// -Z
-		];
-		var material = new THREE.MultiMaterial(faceTexture);
-		var headMesh = new THREE.Mesh(new THREE.CubeGeometry(1.52/4,0.92/4,0.89/4),material);
-
-		var skin = new THREE.MeshLambertMaterial({
-			map: loader.load('https://i.imgur.com/ZSklu60.jpg')});
-
-		var bodyTexture = [
-			skin,
-			skin,
-			skin,
-			skin,
-			new THREE.MeshLambertMaterial({
-					map: loader.load('https://i.imgur.com/uUZxpgM.jpg')}),
-			new THREE.MeshLambertMaterial({
-					map: loader.load('https://i.imgur.com/8UOpKrK.jpg')})
-		];
-
-
-		var bodyMaterial = new THREE.MultiMaterial(bodyTexture);
-		var bodyMesh = new THREE.Mesh(new THREE.CubeGeometry(0.76/4, 1.02/4, 0.51/4),bodyMaterial);
-		headMesh.position.y = 0.46/4;
-		head = new THREE.Object3D();
-		head.add(headMesh)
-		head.position.y = 0.51/4;
-		bodyMesh.add(head);
-
-		leftjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/4, 0.13/4, 0.25/4, 32), skin);
-		var leftArm = new THREE.Mesh(new THREE.CubeGeometry(0.25/4, 0.25/4, 1.02/4),skin);
-		leftArm.position.z = 0.51/4;
-		leftjoint.add(leftArm);
-		leftjoint.position.set(0.51/4,0.32/4,0)
-		bodyMesh.add(leftjoint);
-		rightjoint = new THREE.Mesh(new THREE.CylinderGeometry(0.13/4, 0.13/4, 0.25/4, 32), skin);
-		var rightArm = leftArm.clone();
-		rightArm.position.z = 0.51/4;
-		rightjoint.add(rightArm);
-		rightjoint.position.set(-0.51/4,0.32/4,0);
-		bodyMesh.add(rightjoint);
-		helfBody = new THREE.Object3D();
-		bodyMesh.position.y = 0.51/4;
-		helfBody.add(bodyMesh);
-
-		body = new THREE.Object3D();
-		body.add(helfBody);
-		var leg = new THREE.Mesh(new THREE.CubeGeometry(0.32/4, 0.83/4, 0.51/4),skin);
-		leg.position.y = -0.415/3;
-		var cy = new THREE.Mesh(new THREE.CylinderGeometry(0.1/4, 0.1/4, 0.02/4, 32), skin);
-		cy.rotation.z = Math.PI/2;
-
-		leftLeg = new THREE.Object3D();
-		leftLeg.add(leg);
-		leftLeg.position.set(0.19/4,-0.06/4,0);
-		body.add(leftLeg);
-
-		leftLeg.add(cy);
-		var leg2 = leg.clone();
-		var cy2 = cy.clone();
-		rightLeg = new THREE.Object3D();
-		rightLeg.add(cy2);
-		rightLeg.add(leg2);
-		rightLeg.position.set(-0.19/4,-0.06/4,0);
-
-		body.add(rightLeg);
-		skirt = new THREE.Object3D();
-		var skirtMesh =  new THREE.Mesh(new THREE.CubeGeometry(0.76/4,0.38/4,0.01/4),skin);
-		skirtMesh.position.y= -0.19/4;
-		skirt.add(skirtMesh);
-		skirt.position.z = 0.25/4;
-		skirt.rotation.x = -0.1;
-		helfBody.add(skirt);
-		skirt2 = new THREE.Object3D();
-		var skirt2Mesh = skirtMesh.clone();
-		skirt2.add(skirt2Mesh);
-		skirt2.position.z = -0.25/4;
-		skirt2.rotation.x = 0.1;
-		helfBody.add(skirt2);
-		skirt3 = new THREE.Object3D();
-		var skirt3Mesh = new THREE.Mesh(new THREE.CubeGeometry(0.01/4,0.38/4,0.51/4),skin);
-		skirt3Mesh.position.y=-0.25/4;
-		skirt3.add(skirt3Mesh);
-		skirt3.position.x = 0.38/4;
-		skirt3.rotation.z = 0.1;
-		helfBody.add(skirt3);
-		skirt4 = new THREE.Object3D();
-		var skirt4Mesh = skirt3Mesh.clone();
-		skirt4.add(skirt4Mesh);
-		skirt4.position.x = 0.38/4;
-		skirt4.rotation.z = -0.1;
-		helfBody.add(skirt4);
-		markerRoot.add(unitize(body,1));
-		body.position.set(1.31,0.66/3,-3/6.6);
-		
-		head.rotation.x = -0.2;
-		body.rotation.x = 0.3538825855916411;
-		body.rotation.y = 3.118206107781434;
-		body.rotation.z = 0;
-		leftjoint.rotation.y =  0.18283843012080525;
-		leftjoint.rotation.x = -0.3141592653589793;
-		rightjoint.rotation.y = -0.23757185514875;
-		rightjoint.rotation.x = -0.3141592653589793;
-		leftLeg.rotation.x = 0.2719878687620627;
-		leftLeg.rotation.z = 0.34188034188034205;
-		rightLeg.rotation.x = 0.283016266887235;
-		rightLeg.rotation.z = -0.262889440308795;
-		
-		body.traverse (
-		   function (mesh) {
-			 if (mesh instanceof THREE.Mesh) {
-			   mesh.castShadow = true;
-				mesh.receiveShadow = true;
-			  }
-			}
-		  );
-	}
-	
-	function buildBasketballStands() {
+/*	function buildBasketballStands() {
 		loader.setCrossOrigin ('');
 		var material = new THREE.MeshLambertMaterial({
 		map:loader.load( "https://i.imgur.com/uDsEfox.jpg" )});
@@ -328,8 +356,147 @@
 			  }
 			}
 		  );
-	}
+	}*/
 	
+	function buildBasketballStands() {
+		loader.setCrossOrigin ('');
+		var material = new THREE.MeshLambertMaterial({
+		map:loader.load( "https://i.imgur.com/uDsEfox.jpg" )});
+		var black = new THREE.MeshLambertMaterial({
+		map: loader.load( "https://i.imgur.com/dBsfkR6.jpg" )});
+		var boardTexture = [
+		black, 
+		black,
+		black, 
+		black, 
+		new THREE.MeshLambertMaterial({
+		map: loader.load( "https://i.imgur.com/ypg3IJm.jpg" )}),
+		black 
+		];
+		var boardMaterial = new THREE.MultiMaterial(boardTexture);
+		//var board = new THREE.Mesh(new THREE.CubeGeometry(1.8/3,1.05/3,0.05/3),boardMaterial);
+		//var board = new THREE.Mesh(new THREE.CubeGeometry(180,105,5),boardMaterial);
+		var board = new Board();
+		var buildBasketballStands = new THREE.Object3D();
+		//board.position.set(0.715,2.775/3,-0.6);
+		//smoothedRoot.add(board);
+		//board.position.y = 3.4/3;
+		board.moveTo(0,342.5/200,0);
+		buildBasketballStands.add(board.obj);
+		//var mesh = new THREE.Mesh(new THREE.CubeGeometry(0.16/3,0.02/3,0.08/3),material);
+		var mesh = new THREE.Mesh(new THREE.CubeGeometry(16/200,2/200,8/200),material);
+		
+		//mesh.position.set(0.715,2.51/3,-0.573);
+		//smoothedRoot.add(mesh);
+		//mesh.position.set(0,3.135/3,0.027);
+		mesh.position.set(0,317/200,6.5/200);
+		buildBasketballStands.add(mesh);
+		
+		//mesh2 = new THREE.Mesh(new THREE.CubeGeometry(0.16/3,0.16/3,0.02/3),material);
+		var mesh2 = new THREE.Mesh(new THREE.CubeGeometry(16/200,16/200,2/200),material);
+		//mesh2.position.set(0,2.44/3,-0.589);
+		//smoothedRoot.add(mesh2);
+		//mesh2.position.set(0,3.065/3,0.011);
+		mesh2.position.set(0,309/200,3.5/200);
+		buildBasketballStands.add(mesh2);
+		
+		//var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.225/3,0.01/3,20,100),material);
+		//var hoop = new THREE.Mesh(new THREE.TorusGeometry(22.5,1,20,100),material);
+		//hoop.rotation.x = Math.PI/2;
+		var hoop = new Hoop(22.5*0.065*Math.PI/38);
+		hoop.moveTo(0,317/200,32.5/200);
+		hoop.rotateTo(Math.PI/2);
+		
+		//smoothedRoot.add(hoop);
+		//hoop.position.set(0,317,32.5);
+		buildBasketballStands.add(hoop.obj);
+		
+		// cloth material
+		//var clothTexture = loader.load( 'vendor/circuit_pattern.png' );
+		/*var clothTexture = loader.load( 'vendor/hoop_net.png' );
+		clothTexture.anisotropy = 16;
+
+		var clothMaterial = new THREE.MeshLambertMaterial( {
+			map: clothTexture,
+			side: THREE.DoubleSide,
+			alphaTest: 0.5//不透明值低於此值就不會被renderer
+		} );
+
+		// cloth geometry
+
+		clothGeometry = new THREE.ParametricGeometry( clothFunction, cloth.w, cloth.h );
+
+		// cloth mesh
+		var object = new THREE.Mesh( clothGeometry, clothMaterial );		
+		//markerRoot.add(unitize(object,2));
+		object.customDepthMaterial = new THREE.MeshDepthMaterial( {
+
+			depthPacking: THREE.RGBADepthPacking,
+			map: clothTexture,
+			alphaTest: 0.5
+
+		} );
+		
+		var net = new THREE.Object3D();
+		net.add(object);
+		net.position.set(0,2.51,32.5/200);
+		buildBasketballStands.add(unitize(net,1));*/
+		
+
+		//var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.2/3,0.2/3,1.3/3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")}));
+		var pillar = new THREE.Mesh(new THREE.CylinderBufferGeometry(20/200,20/200,130/200,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/zuj0GRI.jpg")}));
+		//pillar.position.set(0.715,0,-5.725/3);
+		//smoothedRoot.add(pillar);
+		//pillar.position.set(0,0,-0.568);
+		//pillar.position.set(0,0.65/3,-0.418);
+		//pillar.position.set(0,65,-0.418);
+		pillar.position.set(0,65/200,-172.5/200);
+		buildBasketballStands.add(pillar);
+		
+		//var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.15/3,0.15/3,2/3,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		var pillar2 = new THREE.Mesh(new THREE.CylinderBufferGeometry(15/200,15/200,200/200,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		//pillar2.position.set(0.715,1.65/3,-5.725/3);
+		//smoothedRoot.add(pillar2);
+		//pillar2.position.set(0,1.65/3,-0.568);
+		//pillar2.position.set(0,2.3/3,-0.418);
+		pillar2.position.set(0,230/200,-172.5/200);
+		buildBasketballStands.add(pillar2);
+		
+		var pillar3 = new THREE.Mesh(new THREE.CylinderBufferGeometry(15/200,15/200,170/200,32),new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		pillar3.rotation.x = Math.PI/2;
+		//pillar3.position.set(0.715,2.65/3,-1);
+		//smoothedRoot.add(pillar3);
+		//pillar3.position.set(0,3.3/3,-0.213);
+		pillar3.position.set(0,330/200,-87.5/200);
+		buildBasketballStands.add(pillar3);
+		
+		//var splice = new THREE.Mesh(new THREE.SphereGeometry(0.15/3, 32, 32,0), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		var splice = new THREE.Mesh(new THREE.SphereGeometry(15/200, 32, 32,0), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/ITVpGnd.jpg")}));
+		splice.rotation.y= Math.PI/2;
+		//splice.position.set(0.715,2.65/3,-5.725/3);
+		//smoothedRoot.add(splice);
+		//splice.position.set(0,2.65/3,-0.568);
+		//splice.position.set(0,3.3/3,-0.418);
+		splice.position.set(0,330/200,-172.5/200);
+		buildBasketballStands.add(splice);
+		
+		//markerRoot.add(unitize(buildBasketballStands,1.8));
+		markerRoot.add(buildBasketballStands);
+		buildBasketballStands.position.set(1.59,0,-11.7/6.6);
+		buildBasketballStands.updateMatrixWorld();
+		board.updateWorldPosition(board.obj.getWorldPosition());
+		hoop.updateWorldPosition(hoop.obj.getWorldPosition());
+		//console.log("height: " + hoop.obj.position.y)
+		buildBasketballStands.traverse (
+		   function (mesh) {
+			 if (mesh instanceof THREE.Mesh) {
+			   mesh.castShadow = true;
+				mesh.receiveShadow = true;
+			  }
+			}
+		  );
+	}	
+
 	function init() {
 		//////////////////////////////////////////////////////////////////////////////////
 		//		Init
@@ -412,8 +579,6 @@
 		var markerControls = new THREEx.ArMarkerControls(arToolkitContext, camera, {
 			type : 'pattern',
 			patternUrl : 'marker-training/pattern-pattFile/basketball.patt',
-			//patternUrl : 'marker-training/pattern-pattFile/patt.hiro',
-			//patternUrl : THREEx.ArToolkitContext.baseURL + 'marker-training/pattern-pattFile/patt.hiro',
 			// as we controls the camera, set changeMatrixMode: 'cameraTransformMatrix'
 			changeMatrixMode: 'cameraTransformMatrix'
 		})
@@ -427,21 +592,21 @@
 		markerRoot = new THREE.Group
 		scene.add(markerRoot)
 		
-		// add a torus knot
-		// var geometry	= new THREE.CubeGeometry(1,1,1);
-		// var material	= new THREE.MeshNormalMaterial({
-		// 	transparent : true,
-		// 	opacity: 0.5,
-		// 	side: THREE.DoubleSide
-		// });
-		// var mesh	= new THREE.Mesh( geometry, material );
-		// mesh.position.y	= geometry.parameters.height/2
-		// markerRoot.add( mesh );
 		
 		//build danboard
-		buildDanboard();
-		buildBasketballStands();		
+		danboard = new Danboard();
+		markerRoot.add(unitize(danboard.body,1))
+		//danboard.posSet(1.31,0.66/3,-3/6.6);
+		danboard.posSet(1.59,0.66/3,-2.7/6.6);
+		danboard.headRotate(-0.2, 0, 0);		
+		danboard.bodyRotate(0.3538825855916411, 3.118206107781434, 0);
+		danboard.LJointRotate(-0.3141592653589793, 0.18283843012080525, 0);
+		danboard.RJointRotate(-0.3141592653589793, -0.23757185514875, 0);
+		danboard.LLegRotate(0.2719878687620627, 0, 0.34188034188034205);
+		danboard.RLegRotate(0.283016266887235, 0, -0.262889440308795);	
 		
+		
+		buildBasketballStands();
 		var ball = new THREE.Mesh(new THREE.SphereGeometry((0.45*2/3)/Math.PI*0.8, 32, 32), new THREE.MeshLambertMaterial({map:loader.load("https://i.imgur.com/Sw4OGXN.png")}));
 		markerRoot.add(ball);
 		ball.position.set(1.31,1.2,-1.045);
@@ -510,7 +675,7 @@
 	
 	function render() {
 
-		var p = cloth.particles;
+		/*var p = cloth.particles;
 
 		for ( var i = 0, il = p.length; i < il; i ++ ) {
 
@@ -521,7 +686,7 @@
 		clothGeometry.verticesNeedUpdate = true;
 
 		clothGeometry.computeFaceNormals();
-		clothGeometry.computeVertexNormals();
+		clothGeometry.computeVertexNormals();*/
 
 		//sphere.position.copy( ballPosition );
 
@@ -534,8 +699,8 @@
 		requestAnimationFrame( animate );
 		renderer.render( scene, camera );
 		
-		var time = Date.now();
-		simulate( time );
+		/*var time = Date.now();
+		simulate( time );*/
 		stats.update();
 		render();
 		

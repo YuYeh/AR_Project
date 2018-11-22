@@ -486,7 +486,7 @@
 		skirt4.position.x = -24/200;
 		skirt4.rotation.z = -0.1;
 		helfBody.add(skirt4);
-		agent = new Agent(new THREE.Vector3(1.31,0.3,0.1), body);
+		agent = new Agent(new THREE.Vector3(1.59,0.3,-0.2), body);
 		//markerRoot.add(unitize(body,0.9));
 		markerRoot.add(body);
 		//body.position.set(1.31,0.3,-3/6.6);
@@ -633,7 +633,7 @@
 		
 		//markerRoot.add(unitize(buildBasketballStands,1.8));
 		markerRoot.add(buildBasketballStands);
-		buildBasketballStands.position.set(1.31,0,-12/6.6);
+		buildBasketballStands.position.set(1.59,0,-11.7/6.6);
 		buildBasketballStands.updateMatrixWorld();
 		board.updateWorldPosition(board.obj.getWorldPosition());
 		hoop.updateWorldPosition(hoop.obj.getWorldPosition());
@@ -863,7 +863,7 @@
 
 		var markerControls = new THREEx.ArMarkerControls(arToolkitContext, camera, {
 			type : 'pattern',
-			patternUrl : 'marker-training/pattern-pattFile/basketball.patt',
+			patternUrl : 'marker-training/pattern-pattFile/markerPlay.patt',
 			//patternUrl : 'marker-training/pattern-pattFile/patt.hiro',
 			//patternUrl : THREEx.ArToolkitContext.baseURL + 'marker-training/pattern-pattFile/patt.hiro',
 			// as we controls the camera, set changeMatrixMode: 'cameraTransformMatrix'
@@ -928,10 +928,6 @@
 		markerRoot.add(test)*/
 		
 		ball.vel.applyAxisAngle (ball.vel.clone().cross(new THREE.Vector3(0,1,0)),theta);
-		//console.log(ball.pos)
-		//console.log("v.x: " + ball.vel.x + ",v.y: " + ball.vel.y + ",v.z: " + ball.vel.z)
-		//console.log(objects[2].obj.getWorldPosition())
-		
 		/*var test = new THREE.Mesh(new THREE.CubeGeometry(0.1,0.1,0.1),new THREE.MeshNormalMaterial());
 		test.position.copy(objects[2].obj.getWorldPosition());
 		markerRoot.add(test)*/
@@ -1072,8 +1068,6 @@
 		event.preventDefault();
 		let ndcX = (event.clientX / window.innerWidth) * 2 - 1;
 		let ndcY = -(event.clientY / window.innerHeight) * 2 + 1;
-		//let ndcX = (event.clientX / halfW) * 2 - 1;
-		//let ndcY = -(event.clientY / halfH) * 2 + 1;
 		
 		//raycaster.setFromCamera(mouse, camera);
 		pickCompute (ndcX, ndcY)
@@ -1227,8 +1221,8 @@
 		if(posReset) {
 			let d = 0,pos = new  THREE.Vector3(0,0.3,0);
 			while(d < 1.41 || pos. z <objects[2].obj.getWorldPosition().z||pos.clone().sub(body.position).length()==0) {
-				pos.x = (4.5*Math.random() - 2.25)+1.31;
-				pos.z = (21*Math.random() - 10.5)/6.6-1.045;
+				pos.x = (4.5*Math.random() - 1.95)+1.59;
+				pos.z = (21*Math.random() - 10.5)/6.6-0.745;
 				let p  = objects[2].obj.getWorldPosition();
 				p.y = body.position.y;
 				//console.log(p.y)

@@ -8,13 +8,13 @@ class Board  {
 		var black = new THREE.MeshLambertMaterial({
 		map: loader.load( "https://i.imgur.com/dBsfkR6.jpg" )});
 		var boardTexture = [
-		black, 
-		black,
-		black, 
-		black, 
-		new THREE.MeshLambertMaterial({
-		map: loader.load( "https://i.imgur.com/ypg3IJm.jpg" )}),
-		black 
+			black, 
+			black,
+			black, 
+			black, 
+			new THREE.MeshLambertMaterial({
+			map: loader.load( "https://i.imgur.com/ypg3IJm.jpg" )}),
+			black 
 		];
 		var material = new THREE.MultiMaterial(boardTexture);
 		var mesh = new THREE.Mesh(new THREE.CubeGeometry(180/200,105/200,5/200),material);
