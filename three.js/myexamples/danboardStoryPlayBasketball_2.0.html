@@ -337,7 +337,7 @@
 	var nready = true;
 	var agent, line, line2, t;
 	var cpball,initbp;
-	
+	var error = 1;
 	init();
 	animate();
 	
@@ -1117,7 +1117,7 @@
 			//power=0.56;
 			button.material.color.set("yellow");
 			console.log(power);
-			$('#power').text ('Power: ' + power);
+			
 		}
 	}
 	
@@ -1184,8 +1184,8 @@
 			} 
 			else {
 				let d2 = ball.pos.distanceTo(p);
-				ball.vel.setLength(Math.sqrt(10*d2*d2/(2*Math.cos(theta)*Math.cos(theta)*(d2*Math.tan(theta)-(objects[2].hc.y-p.y+10/200)))));
-				
+				let v2 = Math.sqrt(10*d2*d2/(2*Math.cos(theta)*Math.cos(theta)*(d2*Math.tan(theta)-(objects[2].hc.y-p.y+10/200))))
+				ball.vel.setLength(v2);
 				/*if(line)
 					markerRoot.remove(line);
 				line = makeLine(ball.pos,p);
@@ -1201,17 +1201,16 @@
 				
 				//console.log("v0.x: " + ball.vel.x + ",v0.y: " + ball.vel.y + ",v0.z: " + ball.vel.z)
 				if(power < 0.51) {
-					ball.vel.setLength(ball.vel.length()*power*1.9);
-				}
-				if(power > 0.56) {
-					ball.vel.setLength(ball.vel.length()+ball.vel.length()*power/10);
-				}  
+					ball.vel.setLength(v2*power*1.8);
+				} else if(power > 0.56) {
+					ball.vel.setLength(v2+v2*power/10);
+				} 
 				v0.copy(ball.vel);
 				if(line2)
 				markerRoot.remove(line2);
 				line2 = makeLine2(d2);
 				markerRoot.add(line2);				
-				console.log('d2: ' + d2)	
+				//console.log('d2: ' + d2)	
 				tmp = !tmp;
 				update = !update;
 
@@ -1255,8 +1254,8 @@
 		}
 
 		if(doChargeUp) {
-			if(chargeUp.position.x > -halfW/2-0.1) type = 2;
-			if(chargeUp.position.x < -1.55*halfW) type = 1;
+			if(chargeUp.position.x >= -halfW/2-0.1) type = 2;
+			if(chargeUp.position.x <= -1.55*halfW) type = 1;
 			chargeUp.position.x += type==1 ? halfW/100 : -halfW/100;
 			
 			//console.log(ball.vel)
@@ -1266,18 +1265,23 @@
 			let d = initbp.distanceTo(p)
 			let v = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta)-(objects[2].hc.y-p.y+10/200))))
 			ball.vel.setLength(v);
-			v0.copy(ball.vel)
-			power = (chargeUp.position.x + 1.55*halfW)/halfW+0.32
+			
+			power = (chargeUp.position.x + 1.55*halfW)/halfW;
+			if(power<0) {
+				power =0.05;
+			}
+			$('#power').text ('Power: ' + power);
+			console.log(power)
 			if(power < 0.51) {
-					//console.log(ball.vel)
-					ball.vel.setLength(v*power*1.8+1);
-					//console.log(ball.vel)
-					
-				}
-			if(power > 0.56) {
+				//console.log(ball.vel)
+				ball.vel.setLength(v*power*1.8);
+				//console.log(ball.vel)
+				
+			} else if(power > 0.56) {
 				ball.vel.setLength(v+v*power/10);
 			}
-			console.log(ball.vel.length())
+			v0.copy(ball.vel)
+			//console.log(ball.vel.length())
 			if(line2)
 				markerRoot.remove(line2);
 			line2 = makeLine2();
