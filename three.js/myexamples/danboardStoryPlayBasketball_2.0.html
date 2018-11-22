@@ -721,7 +721,7 @@
 		return new THREE.Line(geometry, mat);
 	}
 	
-	function makeLine2(d) {
+	function makeLine2() {
 		let dt = 0.002;
 		let geometry = new THREE.Geometry();
 		let check = 0;
@@ -1110,8 +1110,8 @@
 			cubeSpin = !cubeSpin;
 			doChargeUp = !doChargeUp;
 			nready = !nready;
-			power = chargeUp.position.x;
-			power = (power+1.55*halfW)/halfW;
+			//power = chargeUp.position.x;
+			//power = (power+1.55*halfW)/halfW;
 			//power=0.56;
 			button.material.color.set("yellow");
 			console.log(power);
@@ -1267,18 +1267,18 @@
 			v0.copy(ball.vel)
 			power = (chargeUp.position.x + 1.55*halfW)/halfW+0.32
 			if(power < 0.51) {
-					console.log(ball.vel)
-					ball.vel.setLength(v*power*1.9+1);
-					console.log(ball.vel)
+					//console.log(ball.vel)
+					ball.vel.setLength(v*power*1.8+1);
+					//console.log(ball.vel)
 					
 				}
 			if(power > 0.56) {
 				ball.vel.setLength(v+v*power/10);
 			}
-			
+			console.log(ball.vel.length())
 			if(line2)
 				markerRoot.remove(line2);
-			line2 = makeLine2(d);
+			line2 = makeLine2();
 			markerRoot.add(line2);
 			
 			
