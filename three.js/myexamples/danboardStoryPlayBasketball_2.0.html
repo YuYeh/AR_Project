@@ -722,7 +722,7 @@
 	}
 	
 	function makeLine2() {
-		let dt = 0.002;
+		let dt = 0.04;
 		let geometry = new THREE.Geometry();
 		let check = 0;
 		for(pp=0; ball.pos.y >=  ball.radius;pp++) {
@@ -999,6 +999,8 @@
 		document.addEventListener('touchend', onTouchUp, false);
 		//window.addEventListener('mousedown', onDocumentMouseDown, false);
 		//window.addEventListener ('mouseup', onMouseUp, false);
+		
+		//markerRoot.add(makeLine(ball.pos,ball.pos.clone().add(new THREE.Vector3(0,0.1,-3))))
 	}
 	
 	function unitize (object, targetSize) {
