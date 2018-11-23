@@ -1204,7 +1204,7 @@
 					if(v2*power*1.8 >0)
 						ball.vel.setLength(v2*power*1.8);
 				} else if(power > 0.56) {
-					ball.vel.setLength(v2+v2*power/10);
+					ball.vel.setLength(v2+v2*power/12);
 				} 
 				v0.copy(ball.vel);
 				if(line2)
@@ -1280,7 +1280,7 @@
 				//console.log(ball.vel)
 				
 			} else if(power > 0.56) {
-				ball.vel.setLength(v+v*power/10);
+				ball.vel.setLength(v+v*power/12);
 			}
 			v0.copy(ball.vel)
 			//console.log(ball.vel.length())
