@@ -35,8 +35,8 @@
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
 <div style='position:absolute;top:15vh;text-align:center;color:yellow;width:100%'>
 <div style='position:absolute;top:15vh;text-align:center;color:yellow;width:100%'>
-	<!--p id='ratio'></p>
-	<p id='power'></p-->
+	<!--p id='ratio'></p-->
+	<p id='power'></p>
 </div><script>
 	
 	/* testing cloth simulation(模擬) */
@@ -1200,7 +1200,7 @@
 			else {
 				let d2 = ball.pos.distanceTo(p);
 				let v2 = Math.sqrt(10*d2*d2/(2*Math.cos(theta)*Math.cos(theta)*(d2*Math.tan(theta)-(objects[2].hc.y-p.y+10/200))))
-				//ball.vel.setLength(v2);
+				ball.vel.setLength(v2);
 				/*if(line)
 					markerRoot.remove(line);
 				line = makeLine(ball.pos,p);
@@ -1216,7 +1216,7 @@
 				
 				//console.log("v0.x: " + ball.vel.x + ",v0.y: " + ball.vel.y + ",v0.z: " + ball.vel.z)
 				if(power < 0.51) {
-					if(v2*power*1.8 >0)
+					if(v2*power*1.9 >0)
 						ball.vel.setLength(v2*power*1.9);
 				} else if(power > 0.56) {
 					ball.vel.setLength(v2+v2*power/12);
@@ -1288,11 +1288,11 @@
 			if(power<0) {
 				power =0.05;
 			}
-			//$('#power').text ('Power: ' + power);
-			//console.log(power)
+			$('#power').text ('Power: ' + power);
+			console.log(power)
 			if(power < 0.51) {
 				//console.log(ball.vel)
-				if(v*power*1.8>0)
+				if(v*power*1.9>0)
 					ball.vel.setLength(v*power*1.9);
 				//console.log(ball.vel)
 				
