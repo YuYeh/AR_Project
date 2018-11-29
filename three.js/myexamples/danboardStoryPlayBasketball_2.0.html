@@ -663,7 +663,7 @@
 					if (point.dot(board.normal) < ball.radius ) {  // close enough
 						console.log('board hit')
 						let vn;  // normal velocity component
-						if ((vn = ball.vel.dot (board.normal)) < -1) {  // run towards plane
+						if ((vn = ball.vel.clone().dot (board.normal)) < -1) {  // run towards plane
 							//console.log ('vn: '+vn)
 							let resCoeff = 0.9;
 							ball.vel.sub (ball.vel.clone().projectOnVector 	(board.normal).multiplyScalar (1+resCoeff))
@@ -687,7 +687,7 @@
 		//point.copy (ball.pos);
 		point.y = hoop.hc.y;
 		let projP = point.clone().sub(hoop.hc);//以籃框中心點為原點(轉籃框坐標系)
-		//console.log('lx:' + projP.x+' ly: ' + projP.y+' lz: '+ projP.z)
+		//console.log('lx:' + projP.x+' ly: ' + projP.y+' lz: '+ projP.z);
 		let angle = projP.angleTo(new THREE.Vector3(1,0,0));//計算向量(1,0,0)轉到projP的角度
 		if(ball.pos.z < hoop.hc.z) {
 			angle = Math.PI*2- angle;
@@ -702,7 +702,7 @@
 			console.log('hoop hit')
 			let n = ball.pos.clone().sub(doughnutCP).normalize();
 
-			let v = ball.vel;
+			let v = ball.vel.clone();
 			ball.vel.sub (n.clone().multiplyScalar (v.dot(n)*2*55.845/(ball.mass+55.845) ))
 
 			let vv = doughnutCP.clone().sub(ball.pos);
@@ -1200,7 +1200,7 @@
 			else {
 				let d2 = ball.pos.distanceTo(p);
 				let v2 = Math.sqrt(10*d2*d2/(2*Math.cos(theta)*Math.cos(theta)*(d2*Math.tan(theta)-(objects[2].hc.y-p.y+10/200))))
-				ball.vel.setLength(v2);
+				//ball.vel.setLength(v2);
 				/*if(line)
 					markerRoot.remove(line);
 				line = makeLine(ball.pos,p);
