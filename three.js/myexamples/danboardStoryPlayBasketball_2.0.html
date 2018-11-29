@@ -722,7 +722,7 @@
 	}
 	
 	function makeLine2() {
-		let dt = 0.04;
+		let dt = 0.037;
 		let geometry = new THREE.Geometry();
 		let check = 0;
 		for(pp=0; ball.pos.y >=  ball.radius;pp++) {
@@ -1056,7 +1056,7 @@
 		//let dist = button1.dInfTo ([halfW * ndcX, halfH * ndcY*1.8]);
 		let dist = button1.dInfTo ([ndcX, halfH * ndcY*1.8]);
 		//$('#touch').text ('Mouse-to-Button: ' + dist.toFixed(2) + ' x: ' + ndcX+ ' y: ' + ndcY);
-		console.log('X: ' + ndcX + 'Y: ' + ndcY);
+		//console.log('X: ' + ndcX + 'Y: ' + ndcY);
 		if(ndcX > 0.568 && ndcX < 0.99 && ndcY > -0.99 && ndcY < -0.33&& !update && !agent.stop && !agent.stand) {
 			console.log ('picked')
 			ready = !ready;
@@ -1218,7 +1218,7 @@
 				} 
 				v0.copy(ball.vel);
 				if(line2)
-				markerRoot.remove(line2);
+					markerRoot.remove(line2);
 				line2 = makeLine2(d2);
 				markerRoot.add(line2);				
 				//console.log('d2: ' + d2)	
@@ -1304,7 +1304,7 @@
 			
 		}
 		if(update) {
-			ball.update(0.04);
+			ball.update(0.037);
 		}
 		agent.update(0.03);
 		ballBoardIntersect(objects[0],objects[1]);
