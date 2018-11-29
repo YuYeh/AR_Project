@@ -1155,7 +1155,7 @@
 	function animate() {
 		requestAnimationFrame( animate );
 		renderer.render( scene, camera );
-		renderer.render (sceneHUD, cameraHUD);
+		//renderer.render (sceneHUD, cameraHUD);
 		//var time = Date.now();
 		//simulate( time );
 		stats.update();
@@ -1167,7 +1167,12 @@
 		
 		// update scene.visible if the marker is seen
 		scene.visible = camera.visible;
-		
+		if(!camera.visible) {
+			renderer.autoClear = true;
+		} else {
+			renderer.autoClear = false;
+			renderer.render (sceneHUD, cameraHUD);
+		}
 		if (cubeSpin) {
 			tmp = !tmp;
 			cubeSpin = !cubeSpin;
