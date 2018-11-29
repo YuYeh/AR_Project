@@ -35,8 +35,8 @@
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
 <div style='position:absolute;top:15vh;text-align:center;color:yellow;width:100%'>
 <div style='position:absolute;top:15vh;text-align:center;color:yellow;width:100%'>
-	<p id='ratio'></p>
-	<p id='power'></p>
+	<!--p id='ratio'></p>
+	<p id='power'></p-->
 </div><script>
 	
 	/* testing cloth simulation(模擬) */
@@ -1047,7 +1047,7 @@
 		cameraHUD.right = halfW;
 		cameraHUD.autoUpdate = false;
 		//$('#ratio').text ('W/H ratio: ' + whRatio.toFixed(2))
-		$('#ratio').text ('resize: width: ' + window.innerWidth + ' height: ' + window.innerHeight)
+		//$('#ratio').text ('resize: width: ' + window.innerWidth + ' height: ' + window.innerHeight)
 	}
 	
 	function pickCompute (ndcX, ndcY) {
@@ -1283,7 +1283,7 @@
 			if(power<0) {
 				power =0.05;
 			}
-			$('#power').text ('Power: ' + power);
+			//$('#power').text ('Power: ' + power);
 			//console.log(power)
 			if(power < 0.51) {
 				//console.log(ball.vel)
