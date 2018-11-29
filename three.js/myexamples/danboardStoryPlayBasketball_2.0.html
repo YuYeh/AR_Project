@@ -209,14 +209,14 @@
 				if(this.stop) {
 					if(body.position.x > destination.x) {
 						if( body.rotation.y < Math.PI + bangle) {
-							body.rotation.y += 0.05;
+							body.rotation.y += 0.07;
 							if( body.rotation.y > Math.PI + bangle) {
 								this.stop = !this.stop
 								this.stand = !this.stand;
 							} 
 
 						} else if( body.rotation.y > Math.PI + bangle) {
-							body.rotation.y -= 0.05;
+							body.rotation.y -= 0.07;
 							if( body.rotation.y < Math.PI + bangle) {
 								this.stop = !this.stop
 								this.stand = !this.stand;
@@ -224,13 +224,13 @@
 						}
 					} else {
 						if( body.rotation.y > Math.PI - bangle) {
-							body.rotation.y -= 0.05;
+							body.rotation.y -= 0.07;
 							if( body.rotation.y < Math.PI - bangle) {
 								this.stop = !this.stop
 								this.stand = !this.stand;
 							}
 						} else if( body.rotation.y < Math.PI - bangle) {
-							body.rotation.y += 0.05;
+							body.rotation.y += 0.07;
 							if( body.rotation.y > Math.PI - bangle) {
 								this.stop = !this.stop
 								this.stand = !this.stand;
@@ -726,7 +726,10 @@
 		let geometry = new THREE.Geometry();
 		let check = 0;
 		for(pp=0; ball.pos.y >=  ball.radius;pp++) {
-			geometry.vertices.push (new THREE.Vector3(ball.pos.x,ball.pos.y,ball.pos.z)); 
+			geometry.vertices.push (new THREE.Vector3(ball.pos.x,ball.pos.y,ball.pos.z));		
+			
+			ballBoardIntersect(ball,objects[1]);
+			ballHoopIntersect(ball, objects[2]);
 			ball.vel.add (ball.force.clone().multiplyScalar(dt))
 			ball.pos.add (ball.vel.clone().multiplyScalar(dt))
 		}
@@ -787,12 +790,20 @@
 		//cameraHUD = new THREE.OrthographicCamera (-halfW, halfW, halfH, -halfH, -10,10);
 		//cameraHUD = new THREE.OrthographicCamera (-halfW*0.9,halfW*0.9, halfH*0.85,-halfH*0.85, -10,10);//HTC手機
 		cameraHUD = new THREE.OrthographicCamera (-halfW,halfW, halfH*1.8,-halfH*1.8, -10,10);
-		
-		var buttonSize = halfH/2;
+		loader.setCrossOrigin ('');
+		var buttonSize = halfH/1.2;
 		//console.log("buttonSize: " + buttonSize)
 		//console.log("halfW: " +halfW + ", halfH: " +halfH*1.8);
-		button = new THREE.Mesh (new THREE.PlaneGeometry(buttonSize, buttonSize), new THREE.MeshBasicMaterial({color:"yellow", transparent:true, opacity:0.8}));	
-		button1 = new Button (buttonSize ,halfW*0.88,halfH*1.8*0.55 );//halfW*0.65, -halfH/1.8
+		//new THREE.MeshLambertMaterial({})
+		let btnMat = new THREE.MeshBasicMaterial({
+			map:loader.load("https://i.imgur.com/FnEXRTu.png"),
+			//color:"yellow", 
+			transparent:true, 
+			opacity:0.8
+		});
+		//button = new THREE.Mesh (new THREE.PlaneGeometry(buttonSize, buttonSize), new THREE.MeshBasicMaterial({color:"yellow", transparent:true, opacity:0.8}));		
+		button = new THREE.Mesh (new THREE.PlaneGeometry(buttonSize, buttonSize), btnMat);	
+		button1 = new Button (buttonSize ,halfW*0.785,halfH*1.8*0.46 );//halfW*0.65, -halfH/1.8
 		//button1 = new Button (buttonSize ,halfW*0.88/23,halfH*1.8*0.55/18 );//halfW*0.65, -halfH/1.8
 		//console.log("cx: " + halfW*0.88/23 + "cy: " + halfH*1.8*0.55/18)
 		//console.log('x: ' + button1.centerX + 'Y: ' + button1.centerY)
@@ -962,7 +973,7 @@
 		
 		
 		//floor.position.set(8.65/6.6,0,-6.9/6.6);
-		floor.position.set(1.31,0,-1.045);
+		floor.position.set(1.59,0,-1.045);
 		floor.rotation.x = -Math.PI/2;
 		markerRoot.add( floor );
 		
@@ -980,14 +991,14 @@
 		scene.add( directionalLight );
 		scene.add( directionalLight.target );
 		
-		puck = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 20), new THREE.MeshBasicMaterial({
+		puck = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 20), new THREE.MeshLambertMaterial({
 			color: 'white',
 			transparent: true,
 			opacity: 0.5
 		}));
 		markerRoot.add(puck);
 		puck.material.visible = false;
-		
+		puck.receiveShadow = true;
 		
 		//////////////////////////////////////////////////////////////////////////////////
 		//		render the whole thing on the page
@@ -1045,9 +1056,8 @@
 		//let dist = button1.dInfTo ([halfW * ndcX, halfH * ndcY*1.8]);
 		let dist = button1.dInfTo ([ndcX, halfH * ndcY*1.8]);
 		//$('#touch').text ('Mouse-to-Button: ' + dist.toFixed(2) + ' x: ' + ndcX+ ' y: ' + ndcY);
-		
-		//console.log(dist);
-		if(ndcX > 0.768 && ndcX < 0.99 && ndcY > -0.99 && ndcY < -0.57&& !update && !agent.stop && !agent.stand) {
+		console.log('X: ' + ndcX + 'Y: ' + ndcY);
+		if(ndcX > 0.568 && ndcX < 0.99 && ndcY > -0.99 && ndcY < -0.33&& !update && !agent.stop && !agent.stand) {
 			console.log ('picked')
 			ready = !ready;
 			doChargeUp = !doChargeUp;
@@ -1223,8 +1233,8 @@
 		if(posReset) {
 			let d = 0,pos = new  THREE.Vector3(0,0.3,0);
 			while(d < 1.41 || pos. z <objects[2].obj.getWorldPosition().z||pos.clone().sub(body.position).length()==0) {
-				pos.x = (4.5*Math.random() - 1.95)+1.59;
-				pos.z = (21*Math.random() - 10.5)/6.6-0.745;
+				pos.x = (29*Math.random() - 14.5)/6.6+1.59;
+				pos.z = (20*Math.random() - 10)/6.6-1.045;
 				let p  = objects[2].obj.getWorldPosition();
 				p.y = body.position.y;
 				//console.log(p.y)
@@ -1232,7 +1242,7 @@
 			}
 			agent.setTarget(pos);
 			if(!puck.material.visible) puck.material.visible = !puck.material.visible;
-			puck.position.copy(pos.clone().sub(new THREE.Vector3(0,0.28,0)));
+			puck.position.copy(pos.clone().sub(new THREE.Vector3(0,0.26,0)));
 			agent.rUpdate();
 			let p0 = new THREE.Vector3(0,0,-1);
 			let bangle = p0.angleTo(pos.clone().sub(body.position));
@@ -1255,6 +1265,8 @@
 		}
 
 		if(doChargeUp) {
+			button.rotation.z +=0.5;
+			//console.log(button.rotation)
 			if(chargeUp.position.x >= -halfW/2-0.1) type = 2;
 			if(chargeUp.position.x <= -1.55*halfW) type = 1;
 			chargeUp.position.x += type==1 ? halfW/100 : -halfW/100;
@@ -1272,7 +1284,7 @@
 				power =0.05;
 			}
 			$('#power').text ('Power: ' + power);
-			console.log(power)
+			//console.log(power)
 			if(power < 0.51) {
 				//console.log(ball.vel)
 				if(v*power*1.8>0)
@@ -1292,9 +1304,9 @@
 			
 		}
 		if(update) {
-			ball.update(0.02);
+			ball.update(0.04);
 		}
-		agent.update(0.02);
+		agent.update(0.03);
 		ballBoardIntersect(objects[0],objects[1]);
 		ballHoopIntersect(objects[0], objects[2]);
 	}

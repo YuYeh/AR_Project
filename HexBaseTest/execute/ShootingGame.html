@@ -188,6 +188,43 @@ var pointHUD,pLine2,range;
 var initBall = false;
 
 var first_row = -N;  // the 'r' of first row
+
+//for 特效
+var paintSet = [];
+var count = 0;
+class paint {//11.8 update
+	constructor(h,l,mk) {
+    this.mesh = null;
+    this.h = h;
+    this.l = l;
+    this.o = 1;
+    this.s = 1;
+	this.mk = mk;
+  }
+  pour(){
+ 	this.mesh = makeEffect(this.h);
+    this.mk.add(this.mesh);
+  }
+  update(){
+  	if(this.l < 100) this.l += 0.5;
+    this.mesh.material.color.setHSL( this.h/360, 1, this.l/100 );
+    
+    if(this.o > 0) this.o -= 0.01;
+    this.mesh.material.opacity = this.o;   
+    
+    if(this.s < 4) this.s += 0.05;
+    this.mesh.scale.set(this.s, this.s, this.s);
+  }
+}
+
+function makeEffect(h){//11.8 update
+	var geometry = new THREE.CircleGeometry( 5/80, 64 );
+	let color = new THREE.Color("hsl(" + h +", 100%, 50%)");
+	var material = new THREE.MeshPhongMaterial( { color: color,opacity:1,transparent:true, side: THREE.DoubleSide } );
+	var circle = new THREE.Mesh( geometry, material );
+	circle.rotation.x = -Math.PI/2;
+	return circle;
+}
 /////////////////////////////////////////////////////////
 //for socket.io....
 
@@ -633,6 +670,15 @@ function collisionResponseB(){	//baseB碰撞處理
 	var ww = markerHiro.localToWorld(shell.obj.position.clone());
 	var kk = markerKanji.worldToLocal(ww.clone());
 	lacB = kk;
+	//for 碰撞
+	//if(ball.clone().position.x <= 0) {
+		paintSet.push(new paint(0,50,markerKanji));
+		paintSet[count].pour();
+		paintSet[count].mesh.position.copy(lacB.clone());
+		paintSet[count].mesh.position.y = 2/10;
+		console.log(paintSet[count])
+		count++;
+	//}
 	if (collisionB) {
 		//console.log("collisionB")
 		// closest Hex turns RED
@@ -1020,7 +1066,7 @@ function animate() {
 	requestAnimationFrame(animate);
 	if( arToolkitSource.ready === false )	return
 	arToolkitContext.update( arToolkitSource.domElement )
-	
+	console.log(markerHiro.worldToLocal(markerKanji.position.clone()))
 	if(markerHiro.visible && markerKanji.visible) {
 		markerHiro.updateMatrix();
 		markerHiro.updateMatrixWorld();
@@ -1085,6 +1131,22 @@ function animate() {
 	/////////////////////////////////
 	//collisionResponseA();
 	
+	//for特效
+	let i = 0;
+	for(i ;i<count;i++){
+		paintSet[i].update();
+		console.log("work");
+		if(paintSet[i].mesh.material.opacity < 0.02){
+			console.log(count)
+			scene.remove(paintSet[i].mesh);
+			let ii = i;
+			for(ii;ii < count - 1;ii++){
+				paintSet[ii] = paintSet[ii+1];
+			}
+			paintSet.pop();
+			count--;
+		}
+	}
 	renderer.clear();
 	renderer.render (scene, camera);
 	renderer.render (sceneHUD, cameraHUD);
