@@ -556,7 +556,7 @@ function init() {
 	//shell.moveTo(baseB.position.clone().add(new THREE.Vector3(0,shell.radius/2+5,0)))
 	shell.moveTo(new THREE.Vector3(0,shell.radius/2+5/160,0));
 	shell.updates(0.1);
-	theta = Math.PI/4; // 45 deg 
+	theta = Math.PI/3; // 45 deg 
 	
 	markerHiro.add(shell.obj)
 	stats = new Stats();
@@ -1084,7 +1084,7 @@ function animate() {
 
 		}
 		point.position.copy(line.geometry.vertices[pp-1]);
-		point.position.y = 10/160;
+		point.position.y = 16/160;
 		
 	}
 	if(reset) {
