@@ -9,7 +9,7 @@
 <script src="https://cdn.rawgit.com/j91157j91157/ARPJ/master/three.js/build/ar.js"></script>
 
 <head>
-  <title>Socket.IO chat</title>
+  <title>AR Shooting Game</title>
 </head>
 <body>
 <script>
@@ -324,7 +324,7 @@ function initBallVector(){
 	let p2 = markerKanji.position.clone();
 	let localKanji = markerHiro.worldToLocal(markerKanji.position.clone());
 	d = localKanji.length();
-	console.log(d);
+	//console.log(d);
 	//d = markerHiro.position.distanceTo(markerKanji.position);
 	v0 = Math.sqrt(10*d*d/(2*Math.cos(theta)*Math.cos(theta)*(d*Math.tan(theta))));
 	//console.log(v0);	
@@ -676,7 +676,7 @@ function collisionResponseB(){	//baseB碰撞處理
 		paintSet[count].pour();
 		paintSet[count].mesh.position.copy(lacB.clone());
 		paintSet[count].mesh.position.y = 2/10;
-		console.log(paintSet[count])
+		//console.log(paintSet[count])
 		count++;
 	//}
 	if (collisionB) {
@@ -914,6 +914,7 @@ function bump() {
 }
 
 function onTouchStart (event) {
+	document.documentElement.style.overflow = 'hidden';
 	console.log ('in touch start')
 	if (event.touches.length == 1) {
 		event.preventDefault();
@@ -929,6 +930,7 @@ function onTouchStart (event) {
 }
   	
 function onTouchEnd () {
+	document.documentElement.style.overflow = 'auto';
 	window.removeEventListener('touchmove', onTouchMove, false);
 	if(chargeUp) {
 		chargeUp = false;
@@ -950,6 +952,7 @@ function onTouchMove(event) {
 		let localKanji = markerHiro.worldToLocal(markerKanji.position.clone());
 		d = localKanji.length();
 		let dist= pt.distanceTo(range.position);
+		console.log('distance: '  + dist);
 		let prevpos = pointHUD.position;
 		//let f = forceCtl(dist, 1,2.5);
 		//d += f;
@@ -1015,6 +1018,7 @@ function onDocumentMouseMove(event) {
   
   let pt = new THREE.Vector3(mouse.x*halfW, mouse.y*halfH, 0);
   let dist= pt.distanceTo(range.position);
+  console.log("distance: " +dist);
   let prevpos = pointHUD.position;
   //let f = forceCtl(dist, 1,2.5);
   d = shell.pos.distanceTo(baseA.position);
@@ -1041,7 +1045,7 @@ function onDocumentMouseMove(event) {
   scene.add(line);
   
   	
-    shell.vel.copy( shell.initV.clone().setLength(v0)).applyAxisAngle (new THREE.Vector3(0,1,0), angle);
+  shell.vel.copy( shell.initV.clone().setLength(v0)).applyAxisAngle (new THREE.Vector3(0,1,0), angle);
 
 
   pLine2.geometry.vertices[pLine2.geometry.vertices.length-1].copy (pointHUD.position)
@@ -1066,7 +1070,7 @@ function animate() {
 	requestAnimationFrame(animate);
 	if( arToolkitSource.ready === false )	return
 	arToolkitContext.update( arToolkitSource.domElement )
-	console.log(markerHiro.worldToLocal(markerKanji.position.clone()))
+	//console.log(markerHiro.worldToLocal(markerKanji.position.clone()))
 	if(markerHiro.visible && markerKanji.visible) {
 		markerHiro.updateMatrix();
 		markerHiro.updateMatrixWorld();
